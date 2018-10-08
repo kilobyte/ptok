@@ -31,12 +31,13 @@ static void test_read1()
     hm_insert(c, K, V);
 
     pthread_t th[NTHREADS];
+    done=0;
     for (int i=0; i<NTHREADS; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     sleep(1);
     done=1;
 
-    uint64_t count;
+    uint64_t count=0;
     for (int i=0; i<NTHREADS; i++)
     {
         void* retval;
@@ -45,7 +46,7 @@ static void test_read1()
     }
     
     hm_delete(c);
-    printf("\e[F\e[40C%lu\n", count);
+    printf("\e[F\e[40C%15lu\n", count);
 }
 
 static void run_test(void (*func)(void), const char *name)
@@ -60,8 +61,12 @@ static void run_test(void (*func)(void), const char *name)
 
 int main()
 {
-    HM_SELECT(cuckoo);
     printf("Using %d threads.\n", NTHREADS);
+    HM_SELECT(cuckoo);
+    printf("%s\n", hm_name);
+    TEST(read1);
+    HM_SELECT(cuckoo_mutex);
+    printf("%s\n", hm_name);
     TEST(read1);
     return 0;
 }

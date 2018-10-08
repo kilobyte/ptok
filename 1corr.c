@@ -74,7 +74,7 @@ static void run_test(void (*func)(void), const char *name)
 
 int main()
 {
-    HM_SELECT(cuckoo);
+    HM_SELECT(cuckoo_mutex);
     TEST(smoke);
     TEST(1to1000);
     TEST(insert_delete32M);
