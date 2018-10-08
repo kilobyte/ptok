@@ -1,4 +1,8 @@
-all: test 1corr
+ALL=test 1corr
+all: $(ALL)
+
+clean:
+	rm -f $(ALL) *.o
 
 test: test.o cuckoo.o util.o out.o
 	gcc -Wall -o $@ $^
