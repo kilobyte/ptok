@@ -1,10 +1,21 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
 #include "hmproto.h"
 
 #define ARRAYSZ(x) (sizeof(x)/sizeof(x[0]))
 #define NTHREADS 8
+
+static uint64_t rnd16(unsigned int *seedp)
+{
+    return rand_r(seedp)&0xffff;
+}
+
+static uint64_t rnd64(unsigned int *seedp)
+{
+    return rnd16(seedp)<<48 | rnd16(seedp)<<32 | rnd16(seedp)<<16 | rnd16(seedp);
+}
 
 static int bad=0;
 #define CHECK(x) do if (!(x)) printf("\e[31mWRONG: \e[1m%s\e[22m at line \e[1m%d\e[22m\n", #x, __LINE__),bad=1; while (0)
@@ -44,7 +55,59 @@ static void test_read1()
         CHECK(!pthread_join(th[i], &retval));
         count+=(uintptr_t)retval;
     }
-    
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu\n", count);
+}
+
+static void test_read1_of_2()
+{
+    void *c = hm_new();
+    hm_insert(c, K, V);
+    hm_insert(c, 1, (void*)1);
+
+    pthread_t th[NTHREADS];
+    done=0;
+    for (int i=0; i<NTHREADS; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1, c));
+    sleep(1);
+    done=1;
+
+    uint64_t count=0;
+    for (int i=0; i<NTHREADS; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        count+=(uintptr_t)retval;
+    }
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu\n", count);
+}
+
+static void test_read1_of_1000()
+{
+    void *c = hm_new();
+    hm_insert(c, K, V);
+    unsigned int seed=0;
+    for (int i=0; i<999; i++)
+        hm_insert(c, rnd64(&seed), (void*)1);
+
+    pthread_t th[NTHREADS];
+    done=0;
+    for (int i=0; i<NTHREADS; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1, c));
+    sleep(1);
+    done=1;
+
+    uint64_t count=0;
+    for (int i=0; i<NTHREADS; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        count+=(uintptr_t)retval;
+    }
+
     hm_delete(c);
     printf("\e[F\e[40C%15lu\n", count);
 }
@@ -65,8 +128,12 @@ int main()
     HM_SELECT(cuckoo);
     printf("%s\n", hm_name);
     TEST(read1);
+    TEST(read1_of_2);
+    TEST(read1_of_1000);
     HM_SELECT(cuckoo_mutex);
     printf("%s\n", hm_name);
     TEST(read1);
+    TEST(read1_of_2);
+    TEST(read1_of_1000);
     return 0;
 }
