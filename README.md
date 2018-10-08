@@ -21,9 +21,9 @@ free.
 
 The read lock is a single integer, and never blocks:
 ```
-atomic_increment(r); // INC on x86
+atomic_increment(r); // INC
 ... read
-if (!atomic_fetch_add(r, -1)) // XADD on x86
+if (!atomic_fetch_add(r, -1)) // XADD
     free();
 ```
 
