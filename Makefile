@@ -1,6 +1,9 @@
 ALL=test 1corr
 all: $(ALL)
 
+.c.o:
+	gcc -Wall -c $^
+
 clean:
 	rm -f $(ALL) *.o
 
