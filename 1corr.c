@@ -13,6 +13,16 @@ static void test_smoke()
     hm_delete(c);
 }
 
+static void test_1to1000()
+{
+    void *c = hm_new();
+    for (long i=0; i<1000; i++)
+        hm_insert(c, i, (void*)i);
+    for (long i=0; i<1000; i++)
+        CHECK(hm_get(c, i) == (void*)i);
+    hm_delete(c);
+}
+
 static void run_test(void (*func)(void), const char *name)
 {
     printf("TEST: %s\n", name);
@@ -27,5 +37,6 @@ int main()
 {
     HM_SELECT(cuckoo);
     TEST(smoke);
+    TEST(1to1000);
     return 0;
 }
