@@ -47,6 +47,9 @@ No freeing.
 * Con: writes need to rewrite everything, ***leak*** everything.  32M
   entries = 1GB leaked on every write.  Hahaha no.
 
+(Leaks here can be still tracked, there's just no safe way to free them
+while the hashmap exists unless all users are stopped.)
+
 Dynamic perfect hash
 ====================
 
