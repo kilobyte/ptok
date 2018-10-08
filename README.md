@@ -54,12 +54,12 @@ Dynamic perfect hash
 ====================
 
 [Explained here](https://en.wikipedia.org/wiki/Dynamic_perfect_hashing);
-more complex and possibly somewhat slower (when 1-threaded) than Cuckoo.
-The data is split into small pieces that can be locked separately, except
-for whole-table rewrites; we can nearly eliminate those by growing by huge
-amounts (1 → 256 → 65536 → 16777216 → 4G entries).  Old tables can even
-be RCU leaked — we don't care about pieces so much smaller than live data
-that leak only once.
+more complex than Cuckoo but also needs to check only two hash entries
+(albeit in different tables).  The data is split into small pieces that can
+be locked separately, except for whole-table rewrites; we can nearly
+eliminate those by growing by huge amounts (1 → 256 → 65536 → 16777216 → 4G
+entries).  Old tables can even be RCU leaked — we don't care about pieces so
+much smaller than live data that leak only once.
 
 ### RCU + deletion lock
 
