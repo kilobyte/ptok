@@ -23,14 +23,13 @@ static int done=0;
 
 
 #define K 0xdeadbeefcafebabe
-#define V (void*)0x0123456789ABCDEF
 
 static void* thread_read1(void* c)
 {
     uint64_t count=0;
     while (!done)
     {
-        CHECK(hm_get(c, K) == V);
+        CHECK(hm_get(c, K) == (void*)K);
         count++;
     }
     return (void*)count;
@@ -39,7 +38,7 @@ static void* thread_read1(void* c)
 static void test_read1()
 {
     void *c = hm_new();
-    hm_insert(c, K, V);
+    hm_insert(c, K, (void*)K);
 
     pthread_t th[NTHREADS];
     done=0;
@@ -63,7 +62,7 @@ static void test_read1()
 static void test_read1_of_2()
 {
     void *c = hm_new();
-    hm_insert(c, K, V);
+    hm_insert(c, K, (void*)K);
     hm_insert(c, 1, (void*)1);
 
     pthread_t th[NTHREADS];
@@ -88,10 +87,13 @@ static void test_read1_of_2()
 static void test_read1_of_1000()
 {
     void *c = hm_new();
-    hm_insert(c, K, V);
+    hm_insert(c, K, (void*)K);
     unsigned int seed=0;
     for (int i=0; i<999; i++)
-        hm_insert(c, rnd64(&seed), (void*)1);
+    {
+        uint64_t v = rnd64(&seed);
+        hm_insert(c, v, (void*)v);
+    }
 
     pthread_t th[NTHREADS];
     done=0;
