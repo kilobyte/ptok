@@ -199,17 +199,29 @@ static void test_read1_write_inf_unthrottled()
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
 }
 
-static void run_test(void (*func)(void), const char *name)
+static void run_test(void (*func)(void), const char *name, int mut)
 {
     printf("TEST: %s\n", name);
-    bad=0;
-    func();
-    if (!bad)
-        printf("\e[F \e[32m[\e[1m✓\e[22m]\e[0m\n");
-    else
-        printf("\e[F \e[31m[\e[1m✗\e[22m]\e[0m\n");
+
+    for (int i=0; i<ARRAYSZ(hms); i++)
+    {
+        hm_select(i);
+        if (mut && hm_immutable)
+        {
+            printf(" \e[35m[\e[1m!\e[22m]\e[0m: %s\n", hm_name);
+            continue;
+        }
+
+        printf(" \e[34m[\e[1m⚒\e[22m]\e[0m: %s\n", hm_name);
+        bad=0;
+        func();
+        if (!bad)
+            printf("\e[F \e[32m[\e[1m✓\e[22m]\e[0m\n");
+        else
+            printf("\e[F \e[31m[\e[1m✗\e[22m]\e[0m\n");
+    }
 }
-#define TEST(x) do run_test(test_##x, #x); while (0)
+#define TEST(x,mut) do run_test(test_##x, #x, mut); while (0)
 
 int main()
 {
@@ -217,26 +229,10 @@ int main()
         the1000[i] = rnd64();
 
     printf("Using %d threads.\n", NTHREADS);
-    HM_SELECT(cuckoo);
-    printf("%s\n", hm_name);
-    TEST(read1);
-    TEST(read1_of_2);
-    TEST(read1_of_1000);
-    TEST(read1000_of_1000);
-    printf(" \e[35m[\e[1m!\e[22m]\e[0m: read1_write_inf_unthrottled\n");
-    HM_SELECT(cuckoo_mutex);
-    printf("%s\n", hm_name);
-    TEST(read1);
-    TEST(read1_of_2);
-    TEST(read1_of_1000);
-    TEST(read1000_of_1000);
-    TEST(read1_write_inf_unthrottled);
-    HM_SELECT(tcradix);
-    printf("%s\n", hm_name);
-    TEST(read1);
-    TEST(read1_of_2);
-    TEST(read1_of_1000);
-    TEST(read1000_of_1000);
-    TEST(read1_write_inf_unthrottled);
+    TEST(read1, 0);
+    TEST(read1_of_2, 0);
+    TEST(read1_of_1000, 0);
+    TEST(read1000_of_1000, 0);
+    TEST(read1_write_inf_unthrottled, 1);
     return 0;
 }

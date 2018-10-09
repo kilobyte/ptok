@@ -20,6 +20,7 @@ void *(*hm_remove)(void *c, uint64_t key);
 void *(*hm_get)(void *c, uint64_t key);
 size_t (*hm_get_size)(void *c);
 const char *hm_name;
+int hm_immutable;
 
 #define HM_SELECT_ONE(x,f) hm_##f=x##_##f
 #define HM_SELECT(x) \
@@ -30,3 +31,18 @@ const char *hm_name;
     HM_SELECT_ONE(x,get);\
     HM_SELECT_ONE(x,get_size);\
     hm_name=#x
+
+#define HM_ARR(x,imm) { x##_new, x##_delete, x##_insert, x##_remove, x##_get, x##_get_size, #x, imm }
+struct hm
+{
+    void *(*hm_new)(void);
+    void (*hm_delete)(void *c);
+    int (*hm_insert)(void *c, uint64_t key, void *value);
+    void *(*hm_remove)(void *c, uint64_t key);
+    void *(*hm_get)(void *c, uint64_t key);
+    size_t (*hm_get_size)(void *c);
+    const char *hm_name;
+    int hm_immutable;
+} hms[3];
+
+void hm_select(int i);
