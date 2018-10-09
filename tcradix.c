@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include "util.h"
 
-#define SLICE 8
+//#define SLICE 8
 #define SLNODES (1<<(SLICE))
 #define LEVELS ((63+SLICE)/SLICE)
+#define FUNC(x) tcradixSLICE_##x
 
 #define printf(...)
 
@@ -19,7 +20,7 @@ struct tcrnode
 
 #define TOP_EMPTY 0xffffffffffffffff
 
-struct tcrnode *tcradix_new(void)
+struct tcrnode *FUNC(new)(void)
 {
     struct tcrnode *n = Zalloc(sizeof(struct tcrnode));
     if (n)
@@ -32,6 +33,7 @@ static inline uint32_t sl(uint64_t key, int lev)
     return key>>(lev*SLICE) & (SLNODES-1);
 }
 
+#ifndef printf
 static void display(struct tcrnode *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
@@ -47,6 +49,7 @@ static void display(struct tcrnode *restrict n, int lev)
                 display(n->nodes[i], lev-1);
         }
 }
+#endif
 
 static void teardown(struct tcrnode *restrict n, int lev)
 {
@@ -59,7 +62,7 @@ static void teardown(struct tcrnode *restrict n, int lev)
     Free(n);
 }
 
-void tcradix_delete(struct tcrnode *restrict n)
+void FUNC(delete)(struct tcrnode *restrict n)
 {
     teardown(n, LEVELS-1);
 }
@@ -114,7 +117,7 @@ retry:
     goto retry;
 }
 
-int tcradix_insert(struct tcrnode *restrict n, uint64_t key, void *value)
+int FUNC(insert)(struct tcrnode *restrict n, uint64_t key, void *value)
 {
     printf("insert(%016lx)\n", key);
     int ret = insert(n, LEVELS-1, key, value);
@@ -134,7 +137,7 @@ int tcradix_insert(struct tcrnode *restrict n, uint64_t key, void *value)
     return 0;
 }
 
-void *tcradix_remove(struct tcrnode *restrict n, uint64_t key)
+void *FUNC(remove)(struct tcrnode *restrict n, uint64_t key)
 {
     printf("remove(%016lx)\n", key);
     for (int lev = LEVELS-1; ; lev--)
@@ -154,7 +157,7 @@ void *tcradix_remove(struct tcrnode *restrict n, uint64_t key)
     }
 }
 
-void* tcradix_get(struct tcrnode *restrict n, uint64_t key)
+void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 {
     // TODO: unroll the loop
     printf("get(%016lx)\n", key);
@@ -186,7 +189,7 @@ void* tcradix_get(struct tcrnode *restrict n, uint64_t key)
     return n;
 }
 
-size_t tcradix_get_size(struct tcrnode *restrict n)
+size_t FUNC(get_size)(struct tcrnode *restrict n)
 {
     return 0;
 }
