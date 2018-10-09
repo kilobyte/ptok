@@ -1,10 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "hmproto.h"
 
 #define ARRAYSZ(x) (sizeof(x)/sizeof(x[0]))
 
 static int bad=0;
-#define CHECK(x) do if (!(x)) printf("\e[31mWRONG: \e[1m%s\e[22m at line \e[1m%d\e[22m\n", #x, __LINE__),bad=1; while (0)
+#define CHECK(x) do if (!(x)) printf("\e[31mWRONG: \e[1m%s\e[22m at line \e[1m%d\e[22m\n", #x, __LINE__),bad=1,exit(1); while (0)
 
 static void test_smoke()
 {
