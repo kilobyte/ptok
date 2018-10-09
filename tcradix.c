@@ -163,35 +163,34 @@ void *FUNC(remove)(struct tcrnode *restrict n, uint64_t key)
     }
 }
 
+#define GETL(l) \
+    if ((l)*SLICE < 64)			\
+    {					\
+        uint64_t nk;			\
+        if ((l) && (nk = n->only_key))	\
+        {				\
+            if (nk == key)		\
+                return n->only_val;	\
+            else			\
+                return 0;		\
+        }				\
+        n = n->nodes[sl(key, (l))];	\
+        if (!n)				\
+            return 0;			\
+    }
+
 void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 {
-    // TODO: unroll the loop
     printf("get(%016lx)\n", key);
-    for (int lev = LEVELS-1; lev>=0; lev--)
-    {
-        uint64_t nk;
-        if (lev && (nk = n->only_key))
-        {
-            if (nk == key)
-            {
-                printf("----> direct match\n");
-                return n->only_val;
-            }
-            else
-            {
-                printf("-!--> direct mismatch\n");
-                return 0;
-            }
-        }
-        uint32_t slice = sl(key, lev);
-        printf("-> %d: %02x\n", lev, slice);
-        n = n->nodes[slice];
-        if (!n)
-        {
-            printf("---> missing\n");
-            return 0;
-        }
-    }
+    // for (int lev = LEVELS-1; lev>=0; lev--)
+    GETL(7);
+    GETL(6);
+    GETL(5);
+    GETL(4);
+    GETL(3);
+    GETL(2);
+    GETL(1);
+    GETL(0);
     return n;
 }
 
