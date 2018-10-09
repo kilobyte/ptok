@@ -231,5 +231,12 @@ int main()
     TEST(read1_of_1000);
     TEST(read1000_of_1000);
     TEST(read1_write_inf_unthrottled);
+    HM_SELECT(tcradix);
+    printf("%s\n", hm_name);
+    TEST(read1);
+    TEST(read1_of_2);
+    TEST(read1_of_1000);
+    TEST(read1000_of_1000);
+    TEST(read1_write_inf_unthrottled);
     return 0;
 }

@@ -1,5 +1,5 @@
 ALL=test 1corr th
-OBJ=cuckoo.o util.o out.o cuckoo_mutex.o
+OBJ=cuckoo.o util.o out.o cuckoo_mutex.o tcradix.o
 CFLAGS=-Wall -g -O3 -pthread
 
 all: $(ALL)

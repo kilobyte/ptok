@@ -11,6 +11,7 @@
 
 HM_PROTOS(cuckoo)
 HM_PROTOS(cuckoo_mutex)
+HM_PROTOS(tcradix)
 
 void *(*hm_new)(void);
 void (*hm_delete)(void *c);
