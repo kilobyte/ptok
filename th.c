@@ -151,7 +151,7 @@ static void test_read1000_of_1000()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
-static void* thread_write_1000_unthrottled(void* c)
+static void* thread_write_1000(void* c)
 {
     uint64_t count=0;
     int i=0;
@@ -166,7 +166,7 @@ static void* thread_write_1000_unthrottled(void* c)
     return (void*)count;
 }
 
-static void test_read1_write_1000_unthrottled()
+static void test_read1_write_1000()
 {
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
@@ -176,7 +176,7 @@ static void test_read1_write_1000_unthrottled()
     for (int i=0; i<NTHREADS; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     for (int i=0; i<NTHREADS; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_unthrottled, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
@@ -198,7 +198,7 @@ static void test_read1_write_1000_unthrottled()
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
 }
 
-static void test_read1000_write_1000_unthrottled()
+static void test_read1000_write_1000()
 {
     void *c = hm_new();
     for (int i=0; i<1000; i++)
@@ -209,7 +209,7 @@ static void test_read1000_write_1000_unthrottled()
     for (int i=0; i<NTHREADS; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
     for (int i=0; i<NTHREADS; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_unthrottled, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
@@ -302,8 +302,8 @@ int main()
     TEST(read1_of_2, 0);
     TEST(read1_of_1000, 0);
     TEST(read1000_of_1000, 0);
-    TEST(read1_write_1000_unthrottled, 1);
-    TEST(read1000_write_1000_unthrottled, 1);
+    TEST(read1_write_1000, 1);
+    TEST(read1000_write_1000, 1);
     TEST(read_write_remove_1000, 1);
     return 0;
 }
