@@ -3,12 +3,13 @@ OBJ=cuckoo.o util.o out.o cuckoo_mutex.o hmload.o \
 	tcradix_8.o tcradix_11.o tcradix_13.o tcradix_16.o \
 	radix_8.o radix_11.o radix_13.o radix_16.o \
 
+CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
 
 all: $(ALL)
 
 .c.o:
-	gcc $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 *.o:	hmproto.h
 
@@ -16,13 +17,13 @@ clean:
 	rm -f $(ALL) *.o tcradix_*.c radix_*.c
 
 test: test.o $(OBJ)
-	gcc $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 1corr: 1corr.o $(OBJ)
-	gcc $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 th: th.o $(OBJ)
-	gcc $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 tcradix_8.c: tcradix.c
 	sed s/SLICE/8/g <$< >$@
