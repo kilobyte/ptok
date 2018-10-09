@@ -151,7 +151,7 @@ static void test_read1000_of_1000()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
-static void* thread_write_inf_unthrottled(void* c)
+static void* thread_write_1000_unthrottled(void* c)
 {
     uint64_t count=0;
     int i=0;
@@ -167,7 +167,7 @@ static void* thread_write_inf_unthrottled(void* c)
     return (void*)count;
 }
 
-static void test_read1_write_inf_unthrottled()
+static void test_read1_write_1000_unthrottled()
 {
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
@@ -177,7 +177,7 @@ static void test_read1_write_inf_unthrottled()
     for (int i=0; i<NTHREADS; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     for (int i=0; i<NTHREADS; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_inf_unthrottled, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_unthrottled, c));
     sleep(1);
     done=1;
 
@@ -233,6 +233,6 @@ int main()
     TEST(read1_of_2, 0);
     TEST(read1_of_1000, 0);
     TEST(read1000_of_1000, 0);
-    TEST(read1_write_inf_unthrottled, 1);
+    TEST(read1_write_1000_unthrottled, 1);
     return 0;
 }
