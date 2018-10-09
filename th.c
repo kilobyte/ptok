@@ -161,7 +161,6 @@ static void* thread_write_1000_unthrottled(void* c)
             i=0;
         uint64_t v=the1000[i];
         hm_insert(c, v, (void*)v);
-        CHECK(hm_get(c, v) == (void*)v);
         count++;
     }
     return (void*)count;
