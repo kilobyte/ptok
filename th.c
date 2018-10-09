@@ -199,6 +199,39 @@ static void test_read1_write_1000_unthrottled()
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
 }
 
+static void test_read1000_write_1000_unthrottled()
+{
+    void *c = hm_new();
+    for (int i=0; i<1000; i++)
+        hm_insert(c, the1000[i], (void*)the1000[i]);
+
+    pthread_t th[NTHREADS], wr[NTHREADS];
+    done=0;
+    for (int i=0; i<NTHREADS; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
+    for (int i=0; i<NTHREADS; i++)
+        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_unthrottled, c));
+    sleep(1);
+    done=1;
+
+    uint64_t countr=0, countw=0;
+    for (int i=0; i<NTHREADS; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        countr+=(uintptr_t)retval;
+    }
+    for (int i=0; i<NTHREADS; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(wr[i], &retval));
+        countw+=(uintptr_t)retval;
+    }
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
+}
+
 static void run_test(void (*func)(void), const char *name, int mut)
 {
     printf("TEST: %s\n", name);
@@ -234,5 +267,6 @@ int main()
     TEST(read1_of_1000, 0);
     TEST(read1000_of_1000, 0);
     TEST(read1_write_1000_unthrottled, 1);
+    TEST(read1000_write_1000_unthrottled, 1);
     return 0;
 }
