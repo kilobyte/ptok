@@ -7,20 +7,21 @@
 #define ARRAYSZ(x) (sizeof(x)/sizeof(x[0]))
 #define NTHREADS 8
 
-static uint64_t rnd16(unsigned int *seedp)
+static uint64_t rnd16()
 {
-    return rand_r(seedp)&0xffff;
+    return rand()&0xffff;
 }
 
-static uint64_t rnd64(unsigned int *seedp)
+static uint64_t rnd64()
 {
-    return rnd16(seedp)<<48 | rnd16(seedp)<<32 | rnd16(seedp)<<16 | rnd16(seedp);
+    return rnd16()<<48 | rnd16()<<32 | rnd16()<<16 | rnd16();
 }
 
 static int bad=0;
 #define CHECK(x) do if (!(x)) bad=1; while (0)
 static int done=0;
 
+static uint64_t the1000[1000];
 
 #define K 0xdeadbeefcafebabe
 
@@ -88,12 +89,8 @@ static void test_read1_of_1000()
 {
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
-    unsigned int seed=0;
     for (int i=0; i<999; i++)
-    {
-        uint64_t v = rnd64(&seed);
-        hm_insert(c, v, (void*)v);
-    }
+        hm_insert(c, the1000[i], (void*)the1000[i]);
 
     pthread_t th[NTHREADS];
     done=0;
@@ -117,13 +114,14 @@ static void test_read1_of_1000()
 static void* thread_read1000_of_1000(void* c)
 {
     uint64_t count=0;
-    unsigned int seed=0;
+    int i=0;
     while (!done)
     {
-        uint64_t v=rnd64(&seed);
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
         CHECK(hm_get(c, v) == (void*)v);
-        if (!(++count%1000))
-            seed=0;
+        count++;
     }
     return (void*)count;
 }
@@ -131,12 +129,8 @@ static void* thread_read1000_of_1000(void* c)
 static void test_read1000_of_1000()
 {
     void *c = hm_new();
-    unsigned int seed=0;
     for (int i=0; i<1000; i++)
-    {
-        uint64_t v=rnd64(&seed);
-        hm_insert(c, v, (void*)v);
-    }
+        hm_insert(c, the1000[i], (void*)the1000[i]);
 
     pthread_t th[NTHREADS];
     done=0;
@@ -160,11 +154,14 @@ static void test_read1000_of_1000()
 static void* thread_write_inf_unthrottled(void* c)
 {
     uint64_t count=0;
-    unsigned int seed=0;
+    int i=0;
     while (!done)
     {
-        uint64_t v=rnd64(&seed);
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
         hm_insert(c, v, (void*)v);
+        CHECK(hm_get(c, v) == (void*)v);
         count++;
     }
     return (void*)count;
@@ -216,6 +213,9 @@ static void run_test(void (*func)(void), const char *name)
 
 int main()
 {
+    for (int i=0; i<ARRAYSZ(the1000); i++)
+        the1000[i] = rnd64();
+
     printf("Using %d threads.\n", NTHREADS);
     HM_SELECT(cuckoo);
     printf("%s\n", hm_name);
