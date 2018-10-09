@@ -120,17 +120,23 @@ retry:
 int FUNC(insert)(struct tcrnode *restrict n, uint64_t key, void *value)
 {
     printf("insert(%016lx)\n", key);
-    int ret = insert(n, LEVELS-1, key, value);
-    if (ret)
-        return ret;
 
-    if (n->only_key == TOP_EMPTY) //FIXME
+    if (n->only_key == TOP_EMPTY)
     {
-        /* might be slightly racey */
+        /* A slight race in a pathological case:
+           * thread 1 creates then deletes an entry with oid=0xffffffffffffffff
+           * thread 2 creates something
+           and both race in this tiny section.
+         */
         if (util_bool_compare_and_swap64(&n->only_val, 0, value))
             if (!util_bool_compare_and_swap64(&n->only_key, TOP_EMPTY, key))
                 n->only_key = 0;
     }
+
+    int ret = insert(n, LEVELS-1, key, value);
+    if (ret)
+        return ret;
+
 #ifndef printf
     display(n, LEVELS-1);
 #endif
