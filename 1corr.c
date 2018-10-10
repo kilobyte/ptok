@@ -26,7 +26,23 @@ static void test_1to1000()
     hm_delete(c);
 }
 
-static void test_insert_delete32M()
+static void test_insert_delete1M()
+{
+    #define MAX 1048576
+    void *c = hm_new();
+    for (long i=0; i<MAX; i++)
+    {
+        CHECK(hm_get(c, i) == (void*)0);
+        hm_insert(c, i, (void*)i);
+        CHECK(hm_get(c, i) == (void*)i);
+        CHECK(hm_remove(c, i) == (void*)i);
+        CHECK(hm_get(c, i) == (void*)0);
+    }
+    hm_delete(c);
+    #undef MAX
+}
+
+static void test_insert_bulk_delete1M()
 {
     #define MAX (32*1048576)
     void *c = hm_new();
@@ -34,6 +50,10 @@ static void test_insert_delete32M()
     {
         CHECK(hm_get(c, i) == (void*)0);
         hm_insert(c, i, (void*)i);
+        CHECK(hm_get(c, i) == (void*)i);
+    }
+    for (long i=0; i<MAX; i++)
+    {
         CHECK(hm_get(c, i) == (void*)i);
         CHECK(hm_remove(c, i) == (void*)i);
         CHECK(hm_get(c, i) == (void*)0);
@@ -82,7 +102,8 @@ int main()
 {
     TEST(smoke);
     TEST(1to1000);
-    TEST(insert_delete32M);
+    TEST(insert_delete1M);
+    TEST(insert_bulk_delete1M);
     TEST(ffffffff_and_friends);
     return 0;
 }
