@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
 #include "util.h"
 
 //#define SLICE 8
@@ -11,16 +13,22 @@
 
 #define printf(...)
 
-struct rnode
+struct node
 {
-    struct rnode* nodes[SLNODES];
+    struct node* nodes[SLNODES];
+    uint64_t volatile lock;
+    uint64_t nchildren;
 };
+
+#define DELETER      0x0000000100000000
+#define ANY_DELETERS 0xffffffff00000000
+#define ANY_WRITERS  0x00000000ffffffff
 
 #define TOP_EMPTY 0xffffffffffffffff
 
-struct rnode *FUNC(new)(void)
+struct node *FUNC(new)(void)
 {
-    return Zalloc(sizeof(struct rnode));
+    return Zalloc(sizeof(struct node));
 }
 
 static inline uint32_t sl(uint64_t key, int lev)
@@ -29,10 +37,11 @@ static inline uint32_t sl(uint64_t key, int lev)
 }
 
 #ifndef printf
-static void display(struct rnode *restrict n, int lev)
+static void display(struct node *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
         printf(" ");
+    printf("nchildren=%lu, lock=%lx\n", n->nchildren, n->lock);
     for (uint32_t i=0; i<SLNODES; i++)
         if (n->nodes[i])
         {
@@ -45,7 +54,7 @@ static void display(struct rnode *restrict n, int lev)
 }
 #endif
 
-static void teardown(struct rnode *restrict n, int lev)
+static void teardown(struct node *restrict n, int lev)
 {
     if (lev)
     {
@@ -56,34 +65,42 @@ static void teardown(struct rnode *restrict n, int lev)
     Free(n);
 }
 
-void FUNC(delete)(struct rnode *restrict n)
+void FUNC(delete)(struct node *restrict n)
 {
     teardown(n, LEVELS-1);
 }
 
-static int insert(struct rnode *restrict n, int lev, uint64_t key, void *value)
+static int insert(struct node *restrict n, int lev, uint64_t key, void *value)
 {
-tail_recurse:;
     uint32_t slice = sl(key, lev);
     printf("-> %d: %02x\n", lev, slice);
 
     if (!lev)
     {
-        n->nodes[slice] = value;
+        if (util_bool_compare_and_swap64(&n->nodes[slice], 0, value))
+            util_fetch_and_add64(&n->nchildren, 1);
+        else
+            n->nodes[slice] = value; /* update; we know there are no deleters */
         return 0;
     }
 
+    while (util_fetch_and_add64(&n->lock, 1) & ANY_DELETERS)
+    {
+        util_fetch_and_sub64(&n->lock, 1); /* no atomic_sub? */
+        sleep(0);
+    }
+
 retry:;
-    struct rnode *restrict m;
+    struct node *restrict m;
     if ((m = n->nodes[slice]))
     {
-        n = m;
-        lev--;
-        goto tail_recurse;
+        int ret = insert(m, lev-1, key, value);
+        util_fetch_and_sub64(&n->lock, 1);
+        return ret;
     }
 
     printf("new alloc\n");
-    m = Zalloc(sizeof(struct rnode));
+    m = Zalloc(sizeof(struct node));
     if (!m)
         return ENOMEM;
 
@@ -91,19 +108,29 @@ retry:;
     if (ret)
     {
         Free(m);
+        util_fetch_and_sub64(&n->lock, 1);
         return ret;
     }
 
     if (util_bool_compare_and_swap64(&n->nodes[slice], 0, m))
+    {
+        util_fetch_and_add64(&n->nchildren, 1);
+        util_fetch_and_sub64(&n->lock, 1);
         return 0;
+    }
     /* Someone else just created this subtree for us. */
     teardown(m, lev-1);
     goto retry;
 }
 
-int FUNC(insert)(struct rnode *restrict n, uint64_t key, void *value)
+int FUNC(insert)(struct node *restrict n, uint64_t key, void *value)
 {
     printf("insert(%016lx)\n", key);
+
+    /* value of 0 is indistinguishable from "not existent" */
+    if (!value)
+        return 0;
+
     int ret = insert(n, LEVELS-1, key, value);
     if (ret)
         return ret;
@@ -114,43 +141,97 @@ int FUNC(insert)(struct rnode *restrict n, uint64_t key, void *value)
     return 0;
 }
 
-void *FUNC(remove)(struct rnode *restrict n, uint64_t key)
+/* return 1 if we removed last subtree, making n empty */
+static int nremove(struct node *restrict n, int lev, uint64_t key, void**restrict value)
 {
-    printf("remove(%016lx)\n", key);
-    for (int lev = LEVELS-1; ; lev--)
+    uint32_t slice = sl(key, lev);
+    printf("-> %d: %02x\n", lev, slice);
+    if (!lev)
     {
-        uint32_t slice = sl(key, lev);
-        printf("-> %d: %02x\n", lev, slice);
-        if (lev)
-            n = n->nodes[slice];
-        else
+        if (n->nodes[slice])
         {
-            void* was = n->nodes[slice];
+            *value = n->nodes[slice];
             n->nodes[slice] = 0;
-            return was;
+            return util_fetch_and_sub64(&n->nchildren, 1) == 1;
         }
+        else
+            return 0;
     }
+
+    while (util_fetch_and_add64(&n->lock, 1) & ANY_DELETERS)
+    {
+        util_fetch_and_sub64(&n->lock, 1);
+        sleep(0);
+    }
+
+    struct node *m = n->nodes[slice];
+    if (!m || !nremove(m, lev-1, key, value))
+    {
+        util_fetch_and_sub64(&n->lock, 1);
+        return 0;
+    }
+
+    util_fetch_and_add64(&n->lock, DELETER-1); /* convert write lock to delete lock */
+    while (n->lock & ANY_WRITERS)
+        printf("LOCK: %lx\n", n->lock)
+        ; /* wait for writers to go away */
+
+    /* There still may be other _deleters_, for different keys in this
+     * subtree (in convoluted cases even of the same child, despite us
+     * having been told it's empty!).
+     */
+    if (!util_bool_compare_and_swap64(&n->nodes[slice], m, 0))
+    {
+        util_fetch_and_sub64(&n->lock, DELETER);
+        return 0;
+    }
+
+    if (m->nchildren) /* we had no lock -- a writer could have created something */
+    {
+        n->nodes[slice] = m;
+        util_fetch_and_sub64(&n->lock, DELETER);
+        return 0;
+    }
+    util_fetch_and_sub64(&n->lock, DELETER);
+    Free(m);
+    return util_fetch_and_sub64(&n->nchildren, 1) == 1;
 }
 
-void* FUNC(get)(struct rnode *restrict n, uint64_t key)
+void *FUNC(remove)(struct node *restrict n, uint64_t key)
 {
-    // TODO: unroll the loop
-    printf("get(%016lx)\n", key);
-    for (int lev = LEVELS-1; lev>=0; lev--)
-    {
-        uint32_t slice = sl(key, lev);
-        printf("-> %d: %02x\n", lev, slice);
-        n = n->nodes[slice];
-        if (!n)
-        {
-            printf("---> missing\n");
-            return 0;
-        }
+    printf("remove(%016lx)\n", key);
+    void* value = 0;
+    nremove(n, LEVELS-1, key, &value);
+#ifndef printf
+    display(n, LEVELS-1);
+#endif
+    return value;
+}
+
+#define GETL(l) \
+    if ((l)*SLICE < 64)			\
+    {					\
+        n = n->nodes[sl(key, (l))];	\
+        if (!n)				\
+            return 0;			\
     }
+
+void* FUNC(get)(struct node *restrict n, uint64_t key)
+{
+    printf("get(%016lx)\n", key);
+    // for (int lev = LEVELS-1; lev>=0; lev--)
+    GETL(7);
+    GETL(6);
+    GETL(5);
+    GETL(4);
+    GETL(3);
+    GETL(2);
+    GETL(1);
+    GETL(0);
     return n;
 }
 
-size_t FUNC(get_size)(struct rnode *restrict n)
+size_t FUNC(get_size)(struct node *restrict n)
 {
     return 0;
 }
