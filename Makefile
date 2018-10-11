@@ -1,7 +1,7 @@
 ALL=test 1corr th
 OBJ=cuckoo.o util.o out.o cuckoo_mutex.o hmload.o \
 	tcradix_8.o tcradix_11.o tcradix_13.o tcradix_16.o \
-	radix_8.o radix_11.o radix_13.o radix_16.o \
+	radix_8.o radix_11.o radix_13.o radix_16.o tlog.o \
 
 CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
