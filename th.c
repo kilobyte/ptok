@@ -231,7 +231,7 @@ static void test_read1000_write_1000()
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
 }
 
-static void* thread_read_write_remove_1000(void* c)
+static void* thread_read_write_remove(void* c)
 {
     uint64_t count=0;
     while (!done)
@@ -245,14 +245,14 @@ static void* thread_read_write_remove_1000(void* c)
     return (void*)count;
 }
 
-static void test_read_write_remove_1000()
+static void test_read_write_remove()
 {
     void *c = hm_new();
 
     pthread_t th[NTHREADS];
     done=0;
     for (int i=0; i<NTHREADS; i++)
-        CHECK(!pthread_create(&th[i], 0, thread_read_write_remove_1000, c));
+        CHECK(!pthread_create(&th[i], 0, thread_read_write_remove, c));
     sleep(1);
     done=1;
 
@@ -304,6 +304,6 @@ int main()
     TEST(read1000_of_1000, 0);
     TEST(read1_write_1000, 1);
     TEST(read1000_write_1000, 1);
-    TEST(read_write_remove_1000, 1);
+    TEST(read_write_remove, 1);
     return 0;
 }
