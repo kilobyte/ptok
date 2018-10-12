@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "util.h"
+#include "tlog.h"
 
 //#define SLICE 8
 #define SLNODES (1<<(SLICE))
@@ -17,10 +18,12 @@ struct node
 {
     struct node* nodes[SLNODES];
     uint64_t volatile lock;
+    uint64_t volatile delete_lock;
     uint64_t nchildren;
 };
 
 #define DELETER      0x0000000100000000
+#define ONLY_DELETER 0x0001000000000000
 #define ANY_DELETERS 0xffffffff00000000
 #define ANY_WRITERS  0x00000000ffffffff
 
@@ -180,21 +183,20 @@ static int nremove(struct node *restrict n, int lev, uint64_t key, void**restric
      * subtree (in convoluted cases even of the same child, despite us
      * having been told it's empty!).
      */
-    if (!util_bool_compare_and_swap64(&n->nodes[slice], m, 0))
+
+    do; while (util_fetch_and_or64(&n->lock, ONLY_DELETER) & ONLY_DELETER);
+
+    if (!n->nodes[slice] || m->nchildren) /* we had no lock -- a writer could have created something */
     {
-        util_fetch_and_sub64(&n->lock, DELETER);
+        util_fetch_and_sub64(&n->lock, DELETER|ONLY_DELETER);
         return 0;
     }
 
-    if (m->nchildren) /* we had no lock -- a writer could have created something */
-    {
-        n->nodes[slice] = m;
-        util_fetch_and_sub64(&n->lock, DELETER);
-        return 0;
-    }
-    util_fetch_and_sub64(&n->lock, DELETER);
+    n->nodes[slice] = 0;
+    int was_only = !--n->nchildren;
+    util_fetch_and_sub64(&n->lock, DELETER|ONLY_DELETER);
     Free(m);
-    return util_fetch_and_sub64(&n->nchildren, 1) == 1;
+    return was_only;
 }
 
 void *FUNC(remove)(struct node *restrict n, uint64_t key)
