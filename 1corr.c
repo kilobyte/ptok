@@ -7,6 +7,11 @@
 static int bad=0;
 #define CHECK(x) do if (!(x)) printf("\e[31mWRONG: \e[1m%s\e[22m at line \e[1m%d\e[22m\n", #x, __LINE__),bad=1,exit(1); while (0)
 
+static uint64_t rnd64()
+{
+    return (uint64_t)(uint32_t)(mrand48())<<32 | (uint32_t)(mrand48());
+}
+
 static void test_smoke()
 {
     void *c = hm_new();
@@ -83,6 +88,20 @@ static void test_ffffffff_and_friends()
     hm_delete(c);
 }
 
+static void test_insert_delete_random()
+{
+    void *c = hm_new();
+    for (long i=0; i<1000000; i++)
+    {
+        uint64_t v=rnd64();
+        hm_insert(c, v, (void*)v);
+        CHECK(hm_get(c, v) == (void*)v);
+        CHECK(hm_remove(c, v) == (void*)v);
+        CHECK(hm_get(c, v) == 0);
+    }
+    hm_delete(c);
+}
+
 static void run_test(void (*func)(void), const char *name)
 {
     printf("TEST: %s\n", name);
@@ -105,5 +124,6 @@ int main()
     TEST(insert_delete1M);
     TEST(insert_bulk_delete1M);
     TEST(ffffffff_and_friends);
+    TEST(insert_delete_random);
     return 0;
 }
