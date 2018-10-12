@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "hmproto.h"
+#include "tlog.h"
 
 #define ARRAYSZ(x) (sizeof(x)/sizeof(x[0]))
 #define NTHREADS 8
@@ -17,8 +18,14 @@ static uint64_t rnd64()
     return rnd16()<<48 | rnd16()<<32 | rnd16()<<16 | rnd16();
 }
 
+static uint64_t rnd_r64(unsigned short xsubi[3])
+{
+    return (uint64_t)(uint32_t)(jrand48(xsubi))<<32 | (uint32_t)(jrand48(xsubi));
+}
+
 static int bad=0, any_bad=0;
 #define CHECK(x) do if (!(x)) bad=1; while (0)
+#define CHECKP(x,...) do if (!(x)) {bad=1; printf("ERROR: "__VA_ARGS__);} while (0)
 static int done=0;
 
 static uint64_t the1000[1000];
@@ -233,13 +240,17 @@ static void test_read1000_write_1000()
 
 static void* thread_read_write_remove(void* c)
 {
+    unsigned short xsubi[3];
+    getentropy(xsubi, sizeof(xsubi));
     uint64_t count=0;
     while (!done)
     {
-        uint64_t v=rnd64();
+        uint64_t r, v=rnd_r64(xsubi);
         hm_insert(c, v, (void*)v);
-        CHECK(hm_get(c, v) == (void*)v);
-        CHECK(hm_remove(c, v) == (void*)v);
+        r = (uint64_t)hm_get(c, v);
+        CHECKP(r == v, "get[%016lx] got %016lx\n\n", v, r);
+        r = (uint64_t)hm_remove(c, v);
+        CHECKP(r == v, "remove[%016lx] got %016lx\n\n", v, r);
         count++;
     }
     return (void*)count;
