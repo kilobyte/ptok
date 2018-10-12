@@ -17,7 +17,7 @@ static uint64_t rnd64()
     return rnd16()<<48 | rnd16()<<32 | rnd16()<<16 | rnd16();
 }
 
-static int bad=0;
+static int bad=0, any_bad=0;
 #define CHECK(x) do if (!(x)) bad=1; while (0)
 static int done=0;
 
@@ -287,7 +287,7 @@ static void run_test(void (*func)(void), const char *name, int mut)
         if (!bad)
             printf("\e[F \e[32m[\e[1m✓\e[22m]\e[0m\n");
         else
-            printf("\e[F \e[31m[\e[1m✗\e[22m]\e[0m\n");
+            printf("\e[F \e[31m[\e[1m✗\e[22m]\e[0m\n"), any_bad=1;
     }
 }
 #define TEST(x,mut) do run_test(test_##x, #x, mut); while (0)
@@ -305,5 +305,5 @@ int main()
     TEST(read1_write_1000, 1);
     TEST(read1000_write_1000, 1);
     TEST(read_write_remove, 1);
-    return 0;
+    return any_bad;
 }
