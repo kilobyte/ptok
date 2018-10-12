@@ -2,10 +2,13 @@
 
 open F, '<', 'tlog' or die "Can't open tlog: $!\n";
 my %th;
-while (sysread(F, $_, 16) == 16)
+my $lasttime;
+while (sysread(F, $_, 32) == 32)
 {
-    my ($tid, $act, $data) = unpack 'VVQ';
+    my ($time, $tid, $act, $data1, $data2) = unpack 'QVVQQ';
     my $col = $th{$tid};
     $col=$th{$tid}=sprintf("\e[38;5;%dm",17+int rand(215)) unless defined $col;
-    printf "%s%08x %08x %016x\e[0m\n", $col, $tid, $act, $data;
+    printf "%s%08x %08x %016x %016x %20u %+8d\e[0m\n",
+        $col, $tid, $act, $data1, $data2, $time, $time-$lasttime;
+    $lasttime=$time;
 }
