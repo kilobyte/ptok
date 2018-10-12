@@ -68,9 +68,12 @@ static void teardown(struct tcrnode *restrict n, int lev)
 {
     if (lev)
     {
-        for (uint32_t i=0; i<SLNODES; i++)
-            if (n->nodes[i])
-                teardown(n->nodes[i], lev-1);
+        if (n->only_key)
+            teardown(n->nodes[sl(n->only_key, lev)], lev-1);
+        else
+            for (uint32_t i=0; i<SLNODES; i++)
+                if (n->nodes[i])
+                    teardown(n->nodes[i], lev-1);
     }
     Free(n);
 }
