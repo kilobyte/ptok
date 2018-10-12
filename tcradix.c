@@ -128,7 +128,7 @@ retry:
     int ret = insert(m, lev-1, key, value);
     if (ret)
     {
-        Free(m);
+        teardown(m, lev-1);
         util_fetch_and_sub64(&n->lock, 1);
         return ret;
     }
