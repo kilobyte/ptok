@@ -11,6 +11,7 @@
 
 HM_PROTOS(cuckoo)
 HM_PROTOS(cuckoo_mutex)
+HM_PROTOS(cuckoo_rwlock)
 HM_PROTOS(tcradix8)
 HM_PROTOS(tcradix11)
 HM_PROTOS(tcradix13)
@@ -50,6 +51,6 @@ struct hm
     size_t (*hm_get_size)(void *c);
     const char *hm_name;
     int hm_immutable;
-} hms[10];
+} hms[11];
 
 void hm_select(int i);

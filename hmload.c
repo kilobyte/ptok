@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include "hmproto.h"
 
-struct hm hms[10] =
+struct hm hms[11] =
 {
     HM_ARR(cuckoo, 1),
     HM_ARR(cuckoo_mutex, 0),
+    HM_ARR(cuckoo_rwlock, 0),
     HM_ARR(tcradix8, 0),
     HM_ARR(tcradix11, 0),
     HM_ARR(tcradix13, 0),
