@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -6,7 +7,19 @@
 #include "tlog.h"
 
 #define ARRAYSZ(x) (sizeof(x)/sizeof(x[0]))
-#define NTHREADS 8
+
+// These functions return a 64-bit value on 64-bit systems; I'd be
+// interested in testing stuff on a box where you have more cores
+// than fits in an uint32_t...
+static uint64_t nthreads = 8;
+
+static uint64_t nproc()
+{
+    cpu_set_t set;
+    if (!pthread_getaffinity_np(pthread_self(), sizeof(set), &set))
+        return CPU_COUNT(&set);
+    return 0;
+}
 
 static uint64_t rnd16()
 {
@@ -48,15 +61,15 @@ static void test_read1()
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
 
-    pthread_t th[NTHREADS];
+    pthread_t th[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     sleep(1);
     done=1;
 
     uint64_t count=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
@@ -73,15 +86,15 @@ static void test_read1_of_2()
     hm_insert(c, K, (void*)K);
     hm_insert(c, 1, (void*)1);
 
-    pthread_t th[NTHREADS];
+    pthread_t th[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     sleep(1);
     done=1;
 
     uint64_t count=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
@@ -99,15 +112,15 @@ static void test_read1_of_1000()
     for (int i=0; i<999; i++)
         hm_insert(c, the1000[i], (void*)the1000[i]);
 
-    pthread_t th[NTHREADS];
+    pthread_t th[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     sleep(1);
     done=1;
 
     uint64_t count=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
@@ -139,15 +152,15 @@ static void test_read1000_of_1000()
     for (int i=0; i<1000; i++)
         hm_insert(c, the1000[i], (void*)the1000[i]);
 
-    pthread_t th[NTHREADS];
+    pthread_t th[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
     sleep(1);
     done=1;
 
     uint64_t count=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
@@ -178,23 +191,23 @@ static void test_read1_write_1000()
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
 
-    pthread_t th[NTHREADS], wr[NTHREADS];
+    pthread_t th[nthreads], wr[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
     uint64_t countr=0, countw=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
         countr+=(uintptr_t)retval;
     }
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(wr[i], &retval));
@@ -211,23 +224,23 @@ static void test_read1000_write_1000()
     for (int i=0; i<1000; i++)
         hm_insert(c, the1000[i], (void*)the1000[i]);
 
-    pthread_t th[NTHREADS], wr[NTHREADS];
+    pthread_t th[nthreads], wr[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
     uint64_t countr=0, countw=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
         countr+=(uintptr_t)retval;
     }
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(wr[i], &retval));
@@ -260,15 +273,15 @@ static void test_read_write_remove()
 {
     void *c = hm_new();
 
-    pthread_t th[NTHREADS];
+    pthread_t th[nthreads];
     done=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read_write_remove, c));
     sleep(1);
     done=1;
 
     uint64_t count=0;
-    for (int i=0; i<NTHREADS; i++)
+    for (int i=0; i<nthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
@@ -308,7 +321,10 @@ int main()
     for (int i=0; i<ARRAYSZ(the1000); i++)
         the1000[i] = rnd64();
 
-    printf("Using %d threads.\n", NTHREADS);
+    nthreads = nproc();
+    if (!nthreads)
+        nthreads = 8;
+    printf("Using %ld threads.\n", nthreads);
     TEST(read1, 0);
     TEST(read1_of_2, 0);
     TEST(read1_of_1000, 0);
