@@ -222,6 +222,14 @@ void* FUNC(get)(struct node *restrict n, uint64_t key)
 {
     printf("get(%016lx)\n", key);
     // for (int lev = LEVELS-1; lev>=0; lev--)
+    GETL(15);
+    GETL(14);
+    GETL(13);
+    GETL(12);
+    GETL(11);
+    GETL(10);
+    GETL(9);
+    GETL(8);
     GETL(7);
     GETL(6);
     GETL(5);

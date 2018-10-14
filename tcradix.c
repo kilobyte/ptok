@@ -19,7 +19,7 @@ struct tcrnode
     struct tcrnode* nodes[SLNODES];
     uint64_t only_key;
     void*    only_val;
-    uint64_t pad[6]; // TODO: is avoiding cacheline dirtying worth it?
+//    uint64_t pad[6]; // TODO: is avoiding cacheline dirtying worth it?
     uint64_t volatile lock;
     uint64_t volatile delete_lock;
     uint64_t nchildren;
@@ -266,6 +266,14 @@ void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 {
     printf("get(%016lx)\n", key);
     // for (int lev = LEVELS-1; lev>=0; lev--)
+    GETL(15);
+    GETL(14);
+    GETL(13);
+    GETL(12);
+    GETL(11);
+    GETL(10);
+    GETL(9);
+    GETL(8);
     GETL(7);
     GETL(6);
     GETL(5);
