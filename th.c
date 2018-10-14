@@ -11,7 +11,7 @@
 // These functions return a 64-bit value on 64-bit systems; I'd be
 // interested in testing stuff on a box where you have more cores
 // than fits in an uint32_t...
-static uint64_t nthreads = 8;
+static uint64_t nthreads, nrthreads, nwthreads;
 
 static uint64_t nproc()
 {
@@ -191,23 +191,23 @@ static void test_read1_write_1000()
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
 
-    pthread_t th[nthreads], wr[nthreads];
+    pthread_t th[nrthreads], wr[nwthreads];
     done=0;
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nrthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nwthreads; i++)
         CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
     uint64_t countr=0, countw=0;
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nrthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
         countr+=(uintptr_t)retval;
     }
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nwthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(wr[i], &retval));
@@ -224,23 +224,23 @@ static void test_read1000_write_1000()
     for (int i=0; i<1000; i++)
         hm_insert(c, the1000[i], (void*)the1000[i]);
 
-    pthread_t th[nthreads], wr[nthreads];
+    pthread_t th[nrthreads], wr[nwthreads];
     done=0;
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nrthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nwthreads; i++)
         CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
     sleep(1);
     done=1;
 
     uint64_t countr=0, countw=0;
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nrthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(th[i], &retval));
         countr+=(uintptr_t)retval;
     }
-    for (int i=0; i<nthreads; i++)
+    for (int i=0; i<nwthreads; i++)
     {
         void* retval;
         CHECK(!pthread_join(wr[i], &retval));
@@ -324,7 +324,14 @@ int main()
     nthreads = nproc();
     if (!nthreads)
         nthreads = 8;
-    printf("Using %ld threads.\n", nthreads);
+    nwthreads=nthreads/2;
+    if (!nwthreads)
+        nwthreads = 1;
+    nrthreads=nthreads-nwthreads;
+    if (!nrthreads)
+        nrthreads = 1;
+    printf("Using %lu threads; %lu readers %lu writers in mixed tests.\n",
+        nthreads, nrthreads, nwthreads);
     TEST(read1, 0);
     TEST(read1_of_2, 0);
     TEST(read1_of_1000, 0);
