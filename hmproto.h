@@ -20,6 +20,14 @@ HM_PROTOS(tcradix8)
 HM_PROTOS(tcradix11)
 HM_PROTOS(tcradix13)
 HM_PROTOS(tcradix16)
+HM_PROTOS(tcradix_mutex4)
+HM_PROTOS(tcradix_mutex5)
+HM_PROTOS(tcradix_mutex6)
+HM_PROTOS(tcradix_mutex7)
+HM_PROTOS(tcradix_mutex8)
+HM_PROTOS(tcradix_mutex11)
+HM_PROTOS(tcradix_mutex13)
+HM_PROTOS(tcradix_mutex16)
 HM_PROTOS(radix4)
 HM_PROTOS(radix5)
 HM_PROTOS(radix6)
@@ -59,6 +67,6 @@ struct hm
     size_t (*hm_get_size)(void *c);
     const char *hm_name;
     int hm_immutable;
-} hms[19];
+} hms[27];
 
 void hm_select(int i);

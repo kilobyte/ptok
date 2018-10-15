@@ -2,6 +2,8 @@ ALL=test 1corr th
 OBJ=cuckoo.o util.o out.o cuckoo_mutex.o cuckoo_rwlock.o hmload.o \
 	tcradix_8.o tcradix_11.o tcradix_13.o tcradix_16.o \
 	tcradix_4.o tcradix_5.o tcradix_6.o tcradix_7.o \
+	tcradix-mutex_8.o tcradix-mutex_11.o tcradix-mutex_13.o tcradix-mutex_16.o \
+	tcradix-mutex_4.o tcradix-mutex_5.o tcradix-mutex_6.o tcradix-mutex_7.o \
 	radix_8.o radix_11.o radix_13.o radix_16.o \
 	radix_4.o radix_5.o radix_6.o radix_7.o \
 	tlog.o \
@@ -17,7 +19,7 @@ all: $(ALL)
 *.o:	hmproto.h
 
 clean:
-	rm -f $(ALL) *.o tcradix_*.c radix_*.c
+	rm -f $(ALL) *.o tcradix_*.c tcradix-mutex_*.c radix_*.c
 
 test: test.o $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -43,6 +45,22 @@ tcradix_11.c: tcradix.c
 tcradix_13.c: tcradix.c
 	sed s/SLICE/13/g <$< >$@
 tcradix_16.c: tcradix.c
+	sed s/SLICE/16/g <$< >$@
+tcradix-mutex_4.c: tcradix-mutex.c
+	sed s/SLICE/4/g <$< >$@
+tcradix-mutex_5.c: tcradix-mutex.c
+	sed s/SLICE/5/g <$< >$@
+tcradix-mutex_6.c: tcradix-mutex.c
+	sed s/SLICE/6/g <$< >$@
+tcradix-mutex_7.c: tcradix-mutex.c
+	sed s/SLICE/7/g <$< >$@
+tcradix-mutex_8.c: tcradix-mutex.c
+	sed s/SLICE/8/g <$< >$@
+tcradix-mutex_11.c: tcradix-mutex.c
+	sed s/SLICE/11/g <$< >$@
+tcradix-mutex_13.c: tcradix-mutex.c
+	sed s/SLICE/13/g <$< >$@
+tcradix-mutex_16.c: tcradix-mutex.c
 	sed s/SLICE/16/g <$< >$@
 radix_4.c: radix.c
 	sed s/SLICE/4/g <$< >$@

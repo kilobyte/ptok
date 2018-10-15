@@ -4,5 +4,6 @@ test
 1corr
 th
 tcradix_*.c
+tcradix-mutex_*.c
 radix_*.c
 core
