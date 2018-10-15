@@ -24,9 +24,13 @@ void tlog_init()
 
 static inline uint64_t getticks(void)
 {
+#ifdef __x86_64
      unsigned a, d;
      asm volatile("rdtsc" : "=a" (a), "=d" (d));
      return ((uint64_t)a) | (((uint64_t)d) << 32);
+#else
+     return 0; // TODO
+#endif
 }
 
 void tlog(uint32_t tid, uint32_t act, uint64_t data1, uint64_t data2)
