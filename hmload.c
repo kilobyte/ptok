@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "hmproto.h"
 
-struct hm hms[27] =
+struct hm hms[18] =
 {
     HM_ARR(cuckoo, 1),
     HM_ARR(cuckoo_mutex, 0),
@@ -12,25 +12,25 @@ struct hm hms[27] =
     HM_ARR(tcradix6, 0),
     HM_ARR(tcradix7, 0),
     HM_ARR(tcradix8, 0),
-    HM_ARR(tcradix11, 0),
-    HM_ARR(tcradix13, 0),
-    HM_ARR(tcradix16, 0),
+//  HM_ARR(tcradix11, 0),
+//  HM_ARR(tcradix13, 0),
+//  HM_ARR(tcradix16, 0),
     HM_ARR(tcradix_mutex4, 0),
     HM_ARR(tcradix_mutex5, 0),
     HM_ARR(tcradix_mutex6, 0),
     HM_ARR(tcradix_mutex7, 0),
     HM_ARR(tcradix_mutex8, 0),
-    HM_ARR(tcradix_mutex11, 0),
-    HM_ARR(tcradix_mutex13, 0),
-    HM_ARR(tcradix_mutex16, 0),
+//  HM_ARR(tcradix_mutex11, 0),
+//  HM_ARR(tcradix_mutex13, 0),
+//  HM_ARR(tcradix_mutex16, 0),
     HM_ARR(radix4, 0),
     HM_ARR(radix5, 0),
     HM_ARR(radix6, 0),
     HM_ARR(radix7, 0),
     HM_ARR(radix8, 0),
-    HM_ARR(radix11, 0),
-    HM_ARR(radix13, 0),
-    HM_ARR(radix16, 0),
+//  HM_ARR(radix11, 0),
+//  HM_ARR(radix13, 0),
+//  HM_ARR(radix16, 0),
 };
 
 void hm_select(int i)

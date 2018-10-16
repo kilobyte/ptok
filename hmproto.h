@@ -67,6 +67,6 @@ struct hm
     size_t (*hm_get_size)(void *c);
     const char *hm_name;
     int hm_immutable;
-} hms[27];
+} hms[18];
 
 void hm_select(int i);
