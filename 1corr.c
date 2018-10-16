@@ -21,6 +21,21 @@ static void test_smoke()
     hm_delete(c);
 }
 
+static void test_key0()
+{
+    void *c = hm_new();
+    hm_insert(c, 1, (void*)1);
+    hm_insert(c, 0, (void*)2);
+    hm_insert(c, 65536, (void*)3);
+    CHECK(hm_get(c, 1)    == (void*)1);
+    CHECK(hm_remove(c, 1) == (void*)1);
+    CHECK(hm_get(c, 0)      == (void*)2);
+    CHECK(hm_remove(c, 0)   == (void*)2);
+    CHECK(hm_get(c, 65536)    == (void*)3);
+    CHECK(hm_remove(c, 65536) == (void*)3);
+    hm_delete(c);
+}
+
 static void test_1to1000()
 {
     void *c = hm_new();
@@ -120,6 +135,7 @@ static void run_test(void (*func)(void), const char *name)
 int main()
 {
     TEST(smoke);
+    TEST(key0);
     TEST(1to1000);
     TEST(insert_delete1M);
     TEST(insert_bulk_delete1M);
