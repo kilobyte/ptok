@@ -171,3 +171,6 @@ Questions:
   Trivially changeable by little-vs-big endian tails; can even use any
   permutation: malloced addresses differ near the end but have same last
   couple of slices.
+
+* Cost of memory allocation?  I do a massive number of allocations and
+  frees, all of the same size — easily poolable if we'd want to.
