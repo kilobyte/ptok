@@ -51,8 +51,8 @@ static void display(struct tcrnode *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
         printf(" ");
-    printf("only_key=%016lx, only_val=%016lx, nchildren=%lu, lock=%lx\n",
-        n->only_key, (uint64_t)n->only_val, n->nchildren, n->lock);
+    printf("%sonly_key=%016lx, only_val=%016lx%s, nchildren=%lu\n",
+        lev?"":"{", n->only_key, (uint64_t)n->only_val, lev?"":"}", n->nchildren);
     for (uint32_t i=0; i<SLNODES; i++)
         if (n->nodes[i])
         {
@@ -70,7 +70,11 @@ static void teardown(struct tcrnode *restrict n, int lev)
     if (lev)
     {
         if (n->only_key)
-            teardown(n->nodes[sl(n->only_key, lev)], lev-1);
+        {
+            struct tcrnode *restrict m = n->nodes[sl(n->only_key, lev)];
+            if (m)
+                teardown(m, lev-1);
+        }
         else
             for (uint32_t i=0; i<SLNODES; i++)
                 if (n->nodes[i])
@@ -85,13 +89,48 @@ void FUNC(delete)(struct tcrhead *restrict n)
     teardown(&n->root, LEVELS-1);
 }
 
-static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value)
+static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value);
+
+static inline int insert_child(struct tcrnode *restrict n, int lev,
+                               uint64_t key, void *value)
 {
     uint32_t slice = sl(key, lev);
-    printf("-> %d: %02x\n", lev, slice);
+    struct tcrnode *restrict m;
+    if ((m = n->nodes[slice]))
+        return insert(m, lev-1, key, value);
+
+    printf("new alloc\n");
+    m = Zalloc(sizeof(struct tcrnode));
+    if (!m)
+        return ENOMEM;
+
+    m->only_key = key;
+    m->only_val = value;
+    m->nchildren = (lev==1);
+    if (lev==1)
+        m->nodes[sl(key, 0)] = value;
+    else if (!key) // nasty special case: key of 0
+    {
+        printf("inserting 0 @%d\n", lev);
+        int ret = insert(m, lev-1, key, value);
+        if (ret)
+        {
+            teardown(m, lev-1);
+            return ret;
+        }
+    }
+    n->nodes[slice] = m;
+    n->nchildren++;
+    return 0;
+}
+
+static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value)
+{
+    printf("-> %d: %02x\n", lev, sl(key, lev));
 
     if (!lev)
     {
+        uint32_t slice = sl(key, lev);
         if (!n->nodes[slice])
             n->nchildren++;
         n->nodes[slice] = value;
@@ -103,30 +142,16 @@ static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value
         if (n->only_key == key)
             n->only_val = value;
         else
+        {
+            // need to materialize the has-been-only node
+            int ret = insert_child(n, lev, n->only_key, n->only_val);
+            if (ret)
+                return ret;
             n->only_key = 0;
+        }
     }
 
-    struct tcrnode *restrict m;
-    if ((m = n->nodes[slice]))
-        return insert(m, lev-1, key, value);
-
-    printf("new alloc\n");
-    m = Zalloc(sizeof(struct tcrnode));
-    if (!m)
-        return ENOMEM;
-
-    int ret = insert(m, lev-1, key, value);
-    if (ret)
-    {
-        teardown(m, lev-1);
-        return ret;
-    }
-
-    m->only_key = key;
-    m->only_val = value;
-    n->nodes[slice] = m;
-    n->nchildren++;
-    return 0;
+    return insert_child(n, lev, key, value);
 }
 
 int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
@@ -138,7 +163,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
         return 0;
 
     pthread_mutex_lock(&n->mutex);
-    if (n->root.only_key == TOP_EMPTY)
+    if (n->root.only_key == TOP_EMPTY && !n->root.nchildren)
     {
         n->root.only_val = value;
         n->root.only_key = key;
@@ -158,8 +183,11 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
 /* return 1 if we removed last subtree, making n empty */
 static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**restrict value)
 {
-    if (n->only_key == key)
+    if (n->only_key == key && key)
+    {
         n->only_key = 0;
+        *value = n->only_val;
+    }
 
     uint32_t slice = sl(key, lev);
     printf("-> %d: %02x\n", lev, slice);
@@ -169,7 +197,7 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
         {
             *value = n->nodes[slice];
             n->nodes[slice] = 0;
-            return !--n->nchildren;
+            return !--n->nchildren && !n->only_key;
         }
         else
             return 0;
@@ -180,7 +208,8 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
         return 0;
 
     n->nodes[slice] = 0;
-    int was_only = !--n->nchildren;
+    int was_only = !--n->nchildren && !n->only_key;
+    printf("freed @%d [%u] for %016lx\n", lev, slice, key);
     Free(m);
     return was_only;
 }
