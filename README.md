@@ -112,3 +112,62 @@ Traditional radix
 * Pro: also completely lock-free, not slowed by writes
 * Pro: with many entries, half the cacheline accesses of a compressed radix
 * Con: with 1 entry still needs to traverse the whole tree depth
+
+
+Lessons learned so far:
+=======================
+
+Any synchronization, even by a single asm instruction, makes things around
+100 times slower than even a slow algorithm with many cacheline accesses.
+Thus, anything not lock-free in the read path is not an option.
+
+So cuckoo is out.  This leaves dyn perfect hash and radixes.  But for dyn
+perfect hash, rehashing would require RCU which needs either some sort of
+synchronization or a way of knowing that all readers have exited (they
+usually exit in micro/nanoseconds but sometimes a thread can get blocked for
+hours).
+
+Radixes are not even O(1) but O(word size) with many cacheline accesses but
+so far seem to work fastest.  I'm unsure if my test cases are realistic
+enough, though (esp. wrt. a programs's actual activity using up cache).
+
+Tail-compressed radix has twice as many cacheline reads but for non-crafted
+data works better: as long as tails are unique they don't need to be read.
+
+A downside of radixes is drastically higher memory use.  This can be reduced by
+small slices, at the cost of speed:
+* cuckoo at 40% utilization needs 10 words per entry
+* regular radix: slice=8: 2048 words; slice=4: 256 words
+* tail compressed radix: worst case slightly worse than regular, otherwise
+  depends on path uniqueness
+
+Questions:
+==========
+
+* Are negative answers (ie, entries that are [no longer] in the hashmap) a
+  valid usage?  Not for *obj_direct as that'd crash anyway, but will other
+  users care?  In current implementation, there's a race between deletion
+  and read; fixable at the cost of either:
+  * never freeing deleted entries (can be collected with a sweep if we know
+    readers don't access those) -- unless swept memory use would accumulate
+    unbounded
+  * complicating the algorithm a bit, an extra memory access from an already
+    loaded cacheline, freeing deleted entries to a pool rather than malloc
+    (memory use doesn't grow unless content grows), ~2x as much memory
+    needed
+
+  Neither of these is needed for *obj_direct.
+
+* Are keys random (uuids are)?  Tail compression works badly (but correctly)
+  if heads are shared:
+  ```
+  00000001
+  00000002
+  -- need to process 8 slices, disambiguated only at last position
+  10000000
+  20000000
+  -- disambiguated at 1st position
+  ```
+  Trivially changeable by little-vs-big endian tails; can even use any
+  permutation: malloced addresses differ near the end but have same last
+  couple of slices.
