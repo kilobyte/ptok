@@ -12,7 +12,11 @@
 #define LEVELS ((63+SLICE)/SLICE)
 #define FUNC(x) tcradix_mutexSLICE_##x
 
-#define printf(...)
+#ifdef DEBUG_SPAM
+# define dprintf(...) printf(__VA_ARGS__)
+#else
+# define dprintf(...)
+#endif
 
 //#define TRACEMEM
 
@@ -115,7 +119,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
     if ((m = n->nodes[slice]))
         return insert(m, lev-1, key, value);
 
-    printf("new alloc\n");
+    dprintf("new alloc\n");
     m = Zalloc(sizeof(struct tcrnode));
 #ifdef TRACEMEM
     memusage++;
@@ -130,7 +134,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
         m->nodes[sl(key, 0)] = value;
     else if (!key) // nasty special case: key of 0
     {
-        printf("inserting 0 @%d\n", lev);
+        dprintf("inserting 0 @%d\n", lev);
         int ret = insert(m, lev-1, key, value);
         if (ret)
         {
@@ -145,7 +149,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
 
 static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value)
 {
-    printf("-> %d: %02x\n", lev, sl(key, lev));
+    dprintf("-> %d: %02x\n", lev, sl(key, lev));
 
     if (!lev)
     {
@@ -175,7 +179,7 @@ static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value
 
 int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
 {
-    printf("insert(%016lx)\n", key);
+    dprintf("insert(%016lx)\n", key);
 
     /* value of 0 is indistinguishable from "not existent" */
     if (!value)
@@ -193,9 +197,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
     if (ret)
         return ret;
 
-#ifndef printf
-    display(&n->root, LEVELS-1);
-#endif
+    //display(&n->root, LEVELS-1);
     return 0;
 }
 
@@ -209,7 +211,7 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     }
 
     uint32_t slice = sl(key, lev);
-    printf("-> %d: %02x\n", lev, slice);
+    dprintf("-> %d: %02x\n", lev, slice);
     if (!lev)
     {
         if (n->nodes[slice])
@@ -228,7 +230,7 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
 
     n->nodes[slice] = 0;
     int was_only = !--n->nchildren && !n->only_key;
-    printf("freed @%d [%u] for %016lx\n", lev, slice, key);
+    dprintf("freed @%d [%u] for %016lx\n", lev, slice, key);
 #ifdef TRACEMEM
     memusage--;
 #endif
@@ -238,14 +240,12 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
 
 void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
 {
-    printf("remove(%016lx)\n", key);
+    dprintf("remove(%016lx)\n", key);
     void* value = 0;
     pthread_mutex_lock(&n->mutex);
     nremove(&n->root, LEVELS-1, key, &value);
     pthread_mutex_unlock(&n->mutex);
-#ifndef printf
-    display(&n->root, LEVELS-1);
-#endif
+    //display(&n->root, LEVELS-1);
     return value;
 }
 
@@ -267,7 +267,7 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
 
 void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 {
-    printf("get(%016lx)\n", key);
+    dprintf("get(%016lx)\n", key);
     // for (int lev = LEVELS-1; lev>=0; lev--)
     GETL(15);
     GETL(14);

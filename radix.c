@@ -12,7 +12,11 @@
 #define LEVELS ((63+SLICE)/SLICE)
 #define FUNC(x) radixSLICE_##x
 
-#define printf(...)
+#ifdef DEBUG_SPAM
+# define dprintf(...) printf(__VA_ARGS__)
+#else
+# define dprintf(...)
+#endif
 
 //#define TRACEMEM
 
@@ -92,7 +96,7 @@ void FUNC(delete)(struct node *restrict n)
 static int insert(struct node *restrict n, int lev, uint64_t key, void *value)
 {
     uint32_t slice = sl(key, lev);
-    printf("-> %d: %02x\n", lev, slice);
+    dprintf("-> %d: %02x\n", lev, slice);
 
     if (!lev)
     {
@@ -118,7 +122,7 @@ retry:;
         return ret;
     }
 
-    printf("new alloc\n");
+    dprintf("new alloc\n");
 #ifdef TRACEMEM
     util_fetch_and_add64(&memusage, 1);
 #endif
@@ -147,7 +151,7 @@ retry:;
 
 int FUNC(insert)(struct node *restrict n, uint64_t key, void *value)
 {
-    printf("insert(%016lx)\n", key);
+    dprintf("insert(%016lx)\n", key);
 
     /* value of 0 is indistinguishable from "not existent" */
     if (!value)
@@ -157,9 +161,7 @@ int FUNC(insert)(struct node *restrict n, uint64_t key, void *value)
     if (ret)
         return ret;
 
-#ifndef printf
-    display(n, LEVELS-1);
-#endif
+    //display(n, LEVELS-1);
     return 0;
 }
 
@@ -167,7 +169,7 @@ int FUNC(insert)(struct node *restrict n, uint64_t key, void *value)
 static int nremove(struct node *restrict n, int lev, uint64_t key, void**restrict value)
 {
     uint32_t slice = sl(key, lev);
-    printf("-> %d: %02x\n", lev, slice);
+    dprintf("-> %d: %02x\n", lev, slice);
     if (!lev)
     {
         if (n->nodes[slice])
@@ -195,7 +197,7 @@ static int nremove(struct node *restrict n, int lev, uint64_t key, void**restric
 
     util_fetch_and_add64(&n->lock, DELETER-1); /* convert write lock to delete lock */
     while (n->lock & ANY_WRITERS)
-        printf("LOCK: %lx\n", n->lock)
+        dprintf("LOCK: %lx\n", n->lock)
         ; /* wait for writers to go away */
 
     /* There still may be other _deleters_, for different keys in this
@@ -223,12 +225,10 @@ static int nremove(struct node *restrict n, int lev, uint64_t key, void**restric
 
 void *FUNC(remove)(struct node *restrict n, uint64_t key)
 {
-    printf("remove(%016lx)\n", key);
+    dprintf("remove(%016lx)\n", key);
     void* value = 0;
     nremove(n, LEVELS-1, key, &value);
-#ifndef printf
-    display(n, LEVELS-1);
-#endif
+    //display(n, LEVELS-1);
     return value;
 }
 
@@ -242,7 +242,7 @@ void *FUNC(remove)(struct node *restrict n, uint64_t key)
 
 void* FUNC(get)(struct node *restrict n, uint64_t key)
 {
-    printf("get(%016lx)\n", key);
+    dprintf("get(%016lx)\n", key);
     // for (int lev = LEVELS-1; lev>=0; lev--)
     GETL(15);
     GETL(14);
