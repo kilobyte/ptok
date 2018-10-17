@@ -59,7 +59,6 @@ static inline uint32_t sl(uint64_t key, int lev)
     return key>>(lev*SLICE) & (SLNODES-1);
 }
 
-#ifndef printf
 static void display(struct tcrnode *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
@@ -76,7 +75,6 @@ static void display(struct tcrnode *restrict n, int lev)
                 display(n->nodes[i], lev-1);
         }
 }
-#endif
 
 static void teardown(struct tcrnode *restrict n, int lev)
 {
@@ -225,17 +223,20 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     }
 
     struct tcrnode *m = n->nodes[slice];
-    if (!m || !nremove(m, lev-1, key, value))
-        return 0;
+    if (m)
+    {
+        if (!nremove(m, lev-1, key, value))
+            return 0;
+        dprintf("freed @%d [%u] for %016lx\n", lev, slice, key);
+        n->nodes[slice] = 0;
+        Free(m);
+        #ifdef TRACEMEM
+        memusage--;
+        #endif
+        n->nchildren--;
+    }
 
-    n->nodes[slice] = 0;
-    int was_only = !--n->nchildren && !n->only_key;
-    dprintf("freed @%d [%u] for %016lx\n", lev, slice, key);
-#ifdef TRACEMEM
-    memusage--;
-#endif
-    Free(m);
-    return was_only;
+    return !n->nchildren && !n->only_key;
 }
 
 void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
