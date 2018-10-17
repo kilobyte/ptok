@@ -280,3 +280,8 @@ cuckoo_get_size(struct cuckoo *c)
 	return c->size;
 #endif
 }
+
+uint64_t cuckoo_debug(struct cuckoo *c, uint64_t arg)
+{
+	return 0;
+}

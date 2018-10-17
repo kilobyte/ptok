@@ -8,6 +8,7 @@
     void *x##_remove(void *c, uint64_t key);\
     void *x##_get(void *c, uint64_t key);\
     size_t x##_get_size(void *c);\
+    uint64_t x##_debug(void *c, uint64_t arg);
 
 HM_PROTOS(cuckoo)
 HM_PROTOS(cuckoo_mutex)
@@ -43,6 +44,7 @@ int (*hm_insert)(void *c, uint64_t key, void *value);
 void *(*hm_remove)(void *c, uint64_t key);
 void *(*hm_get)(void *c, uint64_t key);
 size_t (*hm_get_size)(void *c);
+uint64_t (*hm_debug)(void *c, uint64_t arg);
 const char *hm_name;
 int hm_immutable;
 
@@ -54,9 +56,10 @@ int hm_immutable;
     HM_SELECT_ONE(x,remove);\
     HM_SELECT_ONE(x,get);\
     HM_SELECT_ONE(x,get_size);\
+    HM_SELECT_ONE(x,debug);\
     hm_name=#x
 
-#define HM_ARR(x,imm) { x##_new, x##_delete, x##_insert, x##_remove, x##_get, x##_get_size, #x, imm }
+#define HM_ARR(x,imm) { x##_new, x##_delete, x##_insert, x##_remove, x##_get, x##_get_size, x##_debug, #x, imm }
 struct hm
 {
     void *(*hm_new)(void);
@@ -65,6 +68,7 @@ struct hm
     void *(*hm_remove)(void *c, uint64_t key);
     void *(*hm_get)(void *c, uint64_t key);
     size_t (*hm_get_size)(void *c);
+    uint64_t (*hm_debug)(void *c, uint64_t arg);
     const char *hm_name;
     int hm_immutable;
 } hms[18];

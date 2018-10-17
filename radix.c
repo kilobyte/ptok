@@ -271,3 +271,8 @@ size_t FUNC(get_size)(struct node *restrict n)
     return 0;
 #endif
 }
+
+uint64_t FUNC(debug)(struct node *restrict n, uint64_t arg)
+{
+    return 0;
+}

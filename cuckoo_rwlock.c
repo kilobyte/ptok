@@ -102,3 +102,8 @@ size_t cuckoo_rwlock_get_size(struct cs *c)
     rwlock_read_leave(c, busy);
     return ret;
 }
+
+uint64_t cuckoo_rwlock_debug(struct cs *c, uint64_t arg)
+{
+    return 0;
+}

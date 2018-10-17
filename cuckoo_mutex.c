@@ -54,3 +54,8 @@ size_t cuckoo_mutex_get_size(struct cs *c)
     pthread_mutex_unlock(&c->mutex);
     return ret;
 }
+
+uint64_t cuckoo_mutex_debug(struct cs *c, uint64_t arg)
+{
+    return 0;
+}
