@@ -302,6 +302,143 @@ static void test_read_write_remove()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
+#define CACHESIZE 512 /* 32KB in 64-byte cachelines */
+
+static void* thread_read1_cachekiller(void* c)
+{
+    volatile uint64_t cache[CACHESIZE][8];
+
+    uint64_t count=0;
+    while (!done)
+    {
+        for (int i=0; i<CACHESIZE; i++)
+            cache[i][0]++;
+        CHECK(hm_get(c, K) == (void*)K);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void test_read1_cachekiller()
+{
+    void *c = hm_new();
+    hm_insert(c, K, (void*)K);
+
+    pthread_t th[nthreads];
+    done=0;
+    for (int i=0; i<nthreads; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1_cachekiller, c));
+    sleep(1);
+    done=1;
+
+    uint64_t count=0;
+    for (int i=0; i<nthreads; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        count+=(uintptr_t)retval;
+    }
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu\n", count);
+}
+
+static void* thread_read1000_of_1000_cachekiller(void* c)
+{
+    volatile uint64_t cache[CACHESIZE][8];
+
+    uint64_t count=0;
+    int i=0;
+    while (!done)
+    {
+        for (int k=0; k<CACHESIZE; k++)
+            cache[k][0]++;
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
+        CHECK(hm_get(c, v) == (void*)v);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void test_read1000_of_1000_cachekiller()
+{
+    void *c = hm_new();
+    for (int i=0; i<1000; i++)
+        hm_insert(c, the1000[i], (void*)the1000[i]);
+
+    pthread_t th[nthreads];
+    done=0;
+    for (int i=0; i<nthreads; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000_cachekiller, c));
+    sleep(1);
+    done=1;
+
+    uint64_t count=0;
+    for (int i=0; i<nthreads; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        count+=(uintptr_t)retval;
+    }
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu\n", count);
+}
+
+static void* thread_write_1000_cachekiller(void* c)
+{
+    volatile uint64_t cache[CACHESIZE][8];
+
+    uint64_t count=0;
+    int i=0;
+    while (!done)
+    {
+        for (int k=0; k<CACHESIZE; k++)
+            cache[k][0]++;
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
+        hm_insert(c, v, (void*)v);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void test_read1000_write_1000_cachekiller()
+{
+    void *c = hm_new();
+    for (int i=0; i<1000; i++)
+        hm_insert(c, the1000[i], (void*)the1000[i]);
+
+    pthread_t th[nrthreads], wr[nwthreads];
+    done=0;
+    for (int i=0; i<nrthreads; i++)
+        CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000_cachekiller, c));
+    for (int i=0; i<nwthreads; i++)
+        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_cachekiller, c));
+    sleep(1);
+    done=1;
+
+    uint64_t countr=0, countw=0;
+    for (int i=0; i<nrthreads; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(th[i], &retval));
+        countr+=(uintptr_t)retval;
+    }
+    for (int i=0; i<nwthreads; i++)
+    {
+        void* retval;
+        CHECK(!pthread_join(wr[i], &retval));
+        countw+=(uintptr_t)retval;
+    }
+
+    hm_delete(c);
+    printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
+}
+
 static void run_test(void (*func)(void), const char *name, int mut)
 {
     printf("TEST: %s\n", name);
@@ -349,5 +486,8 @@ int main()
     TEST(read1_write_1000, 1);
     TEST(read1000_write_1000, 1);
     TEST(read_write_remove, 1);
+    TEST(read1_cachekiller, 0);
+    TEST(read1000_of_1000_cachekiller, 0);
+    TEST(read1000_write_1000_cachekiller, 1);
     return any_bad;
 }
