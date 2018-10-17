@@ -138,6 +138,13 @@ static void* thread_read1_cachekiller(void* c)
 static void* thread_write1000_cachekiller(void* c)
 {
     volatile uint64_t cache[CACHESIZE][8];
+    unsigned short xsubi[3];
+    xsubi[0]=pthread_self()>>32;
+    xsubi[1]=pthread_self()>>16;
+    xsubi[2]=pthread_self();
+    uint64_t w1000[1000];
+    for (int i=0; i<ARRAYSZ(w1000); i++)
+        w1000[i] = rnd_r64(xsubi);
 
     uint64_t count=0;
     int i=0;
@@ -147,8 +154,10 @@ static void* thread_write1000_cachekiller(void* c)
             cache[k][0]++;
         if (++i==1000)
             i=0;
-        uint64_t v=the1000[i];
+        uint64_t v=w1000[i];
         hm_insert(c, v, (void*)v);
+        uint64_t r=(uint64_t)hm_remove(c, v);
+        CHECK(v==r);
         count++;
     }
     return (void*)count;
