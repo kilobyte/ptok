@@ -45,6 +45,10 @@ static uint64_t the1000[1000];
 
 #define K 0xdeadbeefcafebabe
 
+/***********/
+/* threads */
+/***********/
+
 static void* thread_read1(void* c)
 {
     uint64_t count=0;
@@ -55,6 +59,104 @@ static void* thread_read1(void* c)
     }
     return (void*)count;
 }
+
+static void* thread_read1000_of_1000(void* c)
+{
+    uint64_t count=0;
+    int i=0;
+    while (!done)
+    {
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
+        CHECK(hm_get(c, v) == (void*)v);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void* thread_write1000(void* c)
+{
+    unsigned short xsubi[3];
+    xsubi[0]=pthread_self()>>32;
+    xsubi[1]=pthread_self()>>16;
+    xsubi[2]=pthread_self();
+    uint64_t w1000[1000];
+    for (int i=0; i<ARRAYSZ(w1000); i++)
+        w1000[i] = rnd_r64(xsubi);
+
+    uint64_t count=0;
+    int i=0;
+    while (!done)
+    {
+        if (++i==1000)
+            i=0;
+        uint64_t v=w1000[i];
+        hm_insert(c, v, (void*)v);
+        uint64_t r=(uint64_t)hm_remove(c, v);
+        CHECK(v==r);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void* thread_read_write_remove(void* c)
+{
+    unsigned short xsubi[3];
+    getentropy(xsubi, sizeof(xsubi));
+    uint64_t count=0;
+    while (!done)
+    {
+        uint64_t r, v=rnd_r64(xsubi);
+        hm_insert(c, v, (void*)v);
+        r = (uint64_t)hm_get(c, v);
+        CHECKP(r == v, "get[%016lx] got %016lx\n\n", v, r);
+        r = (uint64_t)hm_remove(c, v);
+        CHECKP(r == v, "remove[%016lx] got %016lx\n\n", v, r);
+        count++;
+    }
+    return (void*)count;
+}
+
+#define CACHESIZE 512 /* 32KB in 64-byte cachelines */
+
+static void* thread_read1_cachekiller(void* c)
+{
+    volatile uint64_t cache[CACHESIZE][8];
+
+    uint64_t count=0;
+    while (!done)
+    {
+        for (int i=0; i<CACHESIZE; i++)
+            cache[i][0]++;
+        CHECK(hm_get(c, K) == (void*)K);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void* thread_write1000_cachekiller(void* c)
+{
+    volatile uint64_t cache[CACHESIZE][8];
+
+    uint64_t count=0;
+    int i=0;
+    while (!done)
+    {
+        for (int k=0; k<CACHESIZE; k++)
+            cache[k][0]++;
+        if (++i==1000)
+            i=0;
+        uint64_t v=the1000[i];
+        hm_insert(c, v, (void*)v);
+        count++;
+    }
+    return (void*)count;
+}
+
+/*********/
+/* tests */
+/*********/
 
 static void test_read1()
 {
@@ -131,21 +233,6 @@ static void test_read1_of_1000()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
-static void* thread_read1000_of_1000(void* c)
-{
-    uint64_t count=0;
-    int i=0;
-    while (!done)
-    {
-        if (++i==1000)
-            i=0;
-        uint64_t v=the1000[i];
-        CHECK(hm_get(c, v) == (void*)v);
-        count++;
-    }
-    return (void*)count;
-}
-
 static void test_read1000_of_1000()
 {
     void *c = hm_new();
@@ -171,32 +258,7 @@ static void test_read1000_of_1000()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
-static void* thread_write_1000(void* c)
-{
-    unsigned short xsubi[3];
-    xsubi[0]=pthread_self()>>32;
-    xsubi[1]=pthread_self()>>16;
-    xsubi[2]=pthread_self();
-    uint64_t w1000[1000];
-    for (int i=0; i<ARRAYSZ(w1000); i++)
-        w1000[i] = rnd_r64(xsubi);
-
-    uint64_t count=0;
-    int i=0;
-    while (!done)
-    {
-        if (++i==1000)
-            i=0;
-        uint64_t v=w1000[i];
-        hm_insert(c, v, (void*)v);
-        uint64_t r=(uint64_t)hm_remove(c, v);
-        CHECK(v==r);
-        count++;
-    }
-    return (void*)count;
-}
-
-static void test_read1_write_1000()
+static void test_read1_write1000()
 {
     void *c = hm_new();
     hm_insert(c, K, (void*)K);
@@ -206,7 +268,7 @@ static void test_read1_write_1000()
     for (int i=0; i<nrthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1, c));
     for (int i=0; i<nwthreads; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write1000, c));
     sleep(1);
     done=1;
 
@@ -228,7 +290,7 @@ static void test_read1_write_1000()
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
 }
 
-static void test_read1000_write_1000()
+static void test_read1000_write1000()
 {
     void *c = hm_new();
     for (int i=0; i<1000; i++)
@@ -239,7 +301,7 @@ static void test_read1000_write_1000()
     for (int i=0; i<nrthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000, c));
     for (int i=0; i<nwthreads; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_1000, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write1000, c));
     sleep(1);
     done=1;
 
@@ -259,24 +321,6 @@ static void test_read1000_write_1000()
 
     hm_delete(c);
     printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
-}
-
-static void* thread_read_write_remove(void* c)
-{
-    unsigned short xsubi[3];
-    getentropy(xsubi, sizeof(xsubi));
-    uint64_t count=0;
-    while (!done)
-    {
-        uint64_t r, v=rnd_r64(xsubi);
-        hm_insert(c, v, (void*)v);
-        r = (uint64_t)hm_get(c, v);
-        CHECKP(r == v, "get[%016lx] got %016lx\n\n", v, r);
-        r = (uint64_t)hm_remove(c, v);
-        CHECKP(r == v, "remove[%016lx] got %016lx\n\n", v, r);
-        count++;
-    }
-    return (void*)count;
 }
 
 static void test_read_write_remove()
@@ -300,23 +344,6 @@ static void test_read_write_remove()
 
     hm_delete(c);
     printf("\e[F\e[40C%15lu\n", count);
-}
-
-#define CACHESIZE 512 /* 32KB in 64-byte cachelines */
-
-static void* thread_read1_cachekiller(void* c)
-{
-    volatile uint64_t cache[CACHESIZE][8];
-
-    uint64_t count=0;
-    while (!done)
-    {
-        for (int i=0; i<CACHESIZE; i++)
-            cache[i][0]++;
-        CHECK(hm_get(c, K) == (void*)K);
-        count++;
-    }
-    return (void*)count;
 }
 
 static void test_read1_cachekiller()
@@ -387,26 +414,7 @@ static void test_read1000_of_1000_cachekiller()
     printf("\e[F\e[40C%15lu\n", count);
 }
 
-static void* thread_write_1000_cachekiller(void* c)
-{
-    volatile uint64_t cache[CACHESIZE][8];
-
-    uint64_t count=0;
-    int i=0;
-    while (!done)
-    {
-        for (int k=0; k<CACHESIZE; k++)
-            cache[k][0]++;
-        if (++i==1000)
-            i=0;
-        uint64_t v=the1000[i];
-        hm_insert(c, v, (void*)v);
-        count++;
-    }
-    return (void*)count;
-}
-
-static void test_read1000_write_1000_cachekiller()
+static void test_read1000_write1000_cachekiller()
 {
     void *c = hm_new();
     for (int i=0; i<1000; i++)
@@ -417,7 +425,7 @@ static void test_read1000_write_1000_cachekiller()
     for (int i=0; i<nrthreads; i++)
         CHECK(!pthread_create(&th[i], 0, thread_read1000_of_1000_cachekiller, c));
     for (int i=0; i<nwthreads; i++)
-        CHECK(!pthread_create(&wr[i], 0, thread_write_1000_cachekiller, c));
+        CHECK(!pthread_create(&wr[i], 0, thread_write1000_cachekiller, c));
     sleep(1);
     done=1;
 
@@ -483,11 +491,11 @@ int main()
     TEST(read1_of_2, 0);
     TEST(read1_of_1000, 0);
     TEST(read1000_of_1000, 0);
-    TEST(read1_write_1000, 1);
-    TEST(read1000_write_1000, 1);
+    TEST(read1_write1000, 1);
+    TEST(read1000_write1000, 1);
     TEST(read_write_remove, 1);
     TEST(read1_cachekiller, 0);
     TEST(read1000_of_1000_cachekiller, 0);
-    TEST(read1000_write_1000_cachekiller, 1);
+    TEST(read1000_write1000_cachekiller, 1);
     return any_bad;
 }
