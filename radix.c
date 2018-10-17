@@ -14,6 +14,12 @@
 
 #define printf(...)
 
+//#define TRACEMEM
+
+#ifdef TRACEMEM
+static int64_t memusage=0;
+#endif
+
 struct node
 {
     struct node* nodes[SLNODES];
@@ -31,6 +37,9 @@ struct node
 
 struct node *FUNC(new)(void)
 {
+#ifdef TRACEMEM
+    memusage=1;
+#endif
     return Zalloc(sizeof(struct node));
 }
 
@@ -66,11 +75,18 @@ static void teardown(struct node *restrict n, int lev)
                 teardown(n->nodes[i], lev-1);
     }
     Free(n);
+#ifdef TRACEMEM
+    util_fetch_and_sub64(&memusage, 1);
+#endif
 }
 
 void FUNC(delete)(struct node *restrict n)
 {
     teardown(n, LEVELS-1);
+#ifdef TRACEMEM
+    if (memusage)
+        fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
+#endif
 }
 
 static int insert(struct node *restrict n, int lev, uint64_t key, void *value)
@@ -103,6 +119,9 @@ retry:;
     }
 
     printf("new alloc\n");
+#ifdef TRACEMEM
+    util_fetch_and_add64(&memusage, 1);
+#endif
     m = Zalloc(sizeof(struct node));
     if (!m)
         return ENOMEM;
@@ -195,6 +214,9 @@ static int nremove(struct node *restrict n, int lev, uint64_t key, void**restric
     n->nodes[slice] = 0;
     int was_only = !--n->nchildren;
     util_fetch_and_sub64(&n->lock, DELETER|ONLY_DELETER);
+#ifdef TRACEMEM
+    util_fetch_and_sub64(&memusage, 1);
+#endif
     Free(m);
     return was_only;
 }
@@ -243,5 +265,9 @@ void* FUNC(get)(struct node *restrict n, uint64_t key)
 
 size_t FUNC(get_size)(struct node *restrict n)
 {
+#ifdef TRACEMEM
+    return memusage*sizeof(struct node);
+#else
     return 0;
+#endif
 }

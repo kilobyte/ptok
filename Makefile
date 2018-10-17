@@ -11,6 +11,10 @@ OBJ=cuckoo.o util.o out.o cuckoo_mutex.o cuckoo_rwlock.o hmload.o \
 CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
 
+ifdef M
+CFLAGS+=-DTRACEMEM
+endif
+
 all: $(ALL)
 
 .c.o:

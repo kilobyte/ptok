@@ -14,6 +14,12 @@
 
 #define printf(...)
 
+//#define TRACEMEM
+
+#ifdef TRACEMEM
+static int64_t memusage=0;
+#endif
+
 struct tcrnode
 {
     struct tcrnode* nodes[SLNODES];
@@ -33,6 +39,9 @@ struct tcrhead
 
 struct tcrhead *FUNC(new)(void)
 {
+#ifdef TRACEMEM
+    memusage=1;
+#endif
     struct tcrhead *n = Zalloc(sizeof(struct tcrhead));
     if (!n)
         return 0;
@@ -81,12 +90,19 @@ static void teardown(struct tcrnode *restrict n, int lev)
                     teardown(n->nodes[i], lev-1);
     }
     Free(n);
+#ifdef TRACEMEM
+    memusage--;
+#endif
 }
 
 void FUNC(delete)(struct tcrhead *restrict n)
 {
     pthread_mutex_destroy(&n->mutex);
     teardown(&n->root, LEVELS-1);
+#ifdef TRACEMEM
+    if (memusage)
+        fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
+#endif
 }
 
 static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value);
@@ -101,6 +117,9 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
 
     printf("new alloc\n");
     m = Zalloc(sizeof(struct tcrnode));
+#ifdef TRACEMEM
+    memusage++;
+#endif
     if (!m)
         return ENOMEM;
 
@@ -210,6 +229,9 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     n->nodes[slice] = 0;
     int was_only = !--n->nchildren && !n->only_key;
     printf("freed @%d [%u] for %016lx\n", lev, slice, key);
+#ifdef TRACEMEM
+    memusage--;
+#endif
     Free(m);
     return was_only;
 }
@@ -268,5 +290,9 @@ void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 
 size_t FUNC(get_size)(struct tcrhead *restrict n)
 {
+#ifdef TRACEMEM
+    return memusage*sizeof(struct tcrnode);
+#else
     return 0;
+#endif
 }

@@ -222,11 +222,16 @@ static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_f
         countw+=(uintptr_t)retval;
     }
 
-    hm_delete(c);
+#ifdef TRACEMEM
+    uint64_t mem = hm_get_size(c);
+    printf("\e[F\e[25Cmem:%10ld\n", mem);
+#else
     if (ntw)
-        printf("\e[F\e[40C%15lu %15lu\n", countr, countw);
+        printf("\e[F\e[25C%15lu %15lu\n", countr, countw);
     else
-        printf("\e[F\e[40C%15lu\n", countr);
+        printf("\e[F\e[25C%15lu\n", countr);
+#endif
+    hm_delete(c);
 }
 
 static void test(const char *name, int spreload, int rpreload,

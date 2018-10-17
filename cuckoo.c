@@ -274,5 +274,9 @@ size_t
 cuckoo_get_size(struct cuckoo *c)
 {
 	ASSERTne(c, NULL);
+#ifdef TRACEMEM
+	return c->size * sizeof(struct cuckoo_slot);
+#else
 	return c->size;
+#endif
 }
