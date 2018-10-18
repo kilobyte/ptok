@@ -248,7 +248,8 @@ static void test(const char *name, int spreload, int rpreload,
             continue;
         }
 
-        printf(" \e[34m[\e[1m⚒\e[22m]\e[0m: %s\n", hm_name);
+        printf(" \e[34m[\e[1m⚒\e[22m]\e[0m: %s%s\e[0m\n",
+               (hm_get == tcradix_mutex4_get)? "\e[4m":"", hm_name);
         bad=0;
         run_test(spreload, rpreload, rthread, ((intptr_t)wthread==-1)?0:wthread);
         if (!bad)
