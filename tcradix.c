@@ -58,8 +58,7 @@ static inline uint32_t sl(uint64_t key, int lev)
     return key>>(lev*SLICE) & (SLNODES-1);
 }
 
-#ifndef printf
-static void display(struct tcrnode *restrict n, int lev)
+static __attribute__((unused)) void display(struct tcrnode *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
         printf(" ");
@@ -75,7 +74,6 @@ static void display(struct tcrnode *restrict n, int lev)
                 display(n->nodes[i], lev-1);
         }
 }
-#endif
 
 static void teardown(struct tcrnode *restrict n, int lev)
 {
