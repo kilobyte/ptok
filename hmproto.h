@@ -37,6 +37,7 @@ HM_PROTOS(radix8)
 HM_PROTOS(radix11)
 HM_PROTOS(radix13)
 HM_PROTOS(radix16)
+HM_PROTOS(critbit)
 
 void *(*hm_new)(void);
 void (*hm_delete)(void *c);
@@ -71,6 +72,6 @@ struct hm
     uint64_t (*hm_debug)(void *c, uint64_t arg);
     const char *hm_name;
     int hm_immutable;
-} hms[18];
+} hms[19];
 
 void hm_select(int i);
