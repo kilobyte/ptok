@@ -170,7 +170,24 @@ Questions:
   ```
   Trivially changeable by little-vs-big endian tails; can even use any
   permutation: malloced addresses differ near the end but have same last
-  couple of slices.
+  couple of slices.  But, we do need to know which order to use if it
+  matters.
 
 * Cost of memory allocation?  I do a massive number of allocations and
   frees, all of the same size — easily poolable if we'd want to.
+
+* Will there be uses that want _write_ speed?  Of the two tcradix
+  implementations, the one with fine-grained locks is drastically more
+  complex, so I'd propose using the global lock one despite being slower
+  (much easier to maintain and/or ensure it's correct).
+
+* Is this hashmap supposed to ever live on pmem?  Cuckoo is unsafe but
+  any of the algorithms here can be adapted.
+
+* If used on pmem, changes in relative operation costs throw speed
+  comparisons out of whack — even in DRAM on cold cache cuckoo (few
+  cacheline accesses) is hardly slower than tcradix (more cacheline
+  accesses), there's a massive speed diff only if cacheline fetches are
+  cheap but synchronization expensive.  On the other hand, datacenter
+  machines tend to have massive number of cores, bumping synchronization
+  costs back up.
