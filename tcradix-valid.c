@@ -46,6 +46,8 @@ struct tcrhead
     struct tcrnode root;
     uint64_t pad[5]; // TODO: is avoiding cacheline dirtying worth it?
     pthread_mutex_t mutex;
+    struct tcrleaf *deleted_leaf;
+    struct tcrnode *deleted_node;
 };
 
 #define TOP_EMPTY 0xffffffffffffffff
@@ -126,8 +128,26 @@ void FUNC(delete)(struct tcrhead *restrict n)
 {
     pthread_mutex_destroy(&n->mutex);
     teardown(&n->root, LEVELS-1);
+    for (struct tcrleaf *l = n->deleted_leaf; l; )
+    {
+        struct tcrleaf *ll=(void*)l->leaves[0].key;
+        Free(l);
 #ifdef TRACEMEM
-    if (memusage-=80)
+        memusage -= sizeof(struct tcrleaf);
+#endif
+        l=ll;
+    }
+    for (struct tcrnode *m = n->deleted_node; m; )
+    {
+        struct tcrnode *mm=m->nodes[0];
+        Free(m);
+#ifdef TRACEMEM
+        memusage -= sizeof(struct tcrnode);
+#endif
+        m=mm;
+    }
+#ifdef TRACEMEM
+    if (memusage-=sizeof(struct tcrhead)-sizeof(struct tcrnode))
         fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
 #endif
 }
@@ -246,7 +266,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
 }
 
 /* return 1 if we removed last subtree, making n empty */
-static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**restrict value)
+static int nremove(struct tcrhead *c, struct tcrnode *restrict n, int lev, uint64_t key, void**restrict value)
 {
     uint32_t slice = sl(key, lev);
     dprintf("-> %d: %02x\n", lev, slice);
@@ -271,14 +291,21 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     struct tcrnode *m = n->nodes[slice];
     if (m)
     {
-        if (!nremove(m, lev-1, key, value))
+        if (!nremove(c, m, lev-1, key, value))
             return 0;
         dprintf("freed @%d [%u] for %016lx\n", lev, slice, key);
         n->nodes[slice] = 0;
-        Free(m);
-        #ifdef TRACEMEM
-        memusage-=lev==1 ? sizeof(struct tcrleaf) : sizeof(struct tcrnode);
-        #endif
+        if (lev==1)
+        {
+            struct tcrleaf *l = (void*)m;
+            l->leaves[0].key = (uint64_t)c->deleted_leaf;
+            c->deleted_leaf = l;
+        }
+        else
+        {
+            m->nodes[0] = c->deleted_node;
+            c->deleted_node = m;
+        }
         n->nchildren--;
     }
 
@@ -290,7 +317,7 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
     dprintf("\e[33mremove(%016lx)\e[0m\n", key);
     void* value = 0;
     pthread_mutex_lock(&n->mutex);
-    nremove(&n->root, LEVELS-1, key, &value);
+    nremove(n, &n->root, LEVELS-1, key, &value);
     pthread_mutex_unlock(&n->mutex);
     //display(&n->root, LEVELS-1);
     return value;
