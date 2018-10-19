@@ -103,6 +103,10 @@ size_t cuckoo_rwlock_get_size(struct cs *c)
     return ret;
 }
 
+void cuckoo_rwlock_get_stats(void *c, uint64_t *buf, int nstat)
+{
+}
+
 uint64_t cuckoo_rwlock_debug(struct cs *c, uint64_t arg)
 {
     return 0;

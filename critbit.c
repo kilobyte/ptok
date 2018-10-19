@@ -151,6 +151,10 @@ size_t critbit_get_size(struct critbit *c)
     return 0;
 }
 
+void critbit_get_stats(void *c, uint64_t *buf, int nstat)
+{
+}
+
 uint64_t critbit_debug(struct critbit *c, uint64_t arg)
 {
     return 0;

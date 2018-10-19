@@ -281,6 +281,10 @@ cuckoo_get_size(struct cuckoo *c)
 #endif
 }
 
+void cuckoo_get_stats(void *c, uint64_t *buf, int nstat)
+{
+}
+
 uint64_t cuckoo_debug(struct cuckoo *c, uint64_t arg)
 {
 	return 0;

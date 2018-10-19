@@ -22,6 +22,8 @@
 
 #ifdef TRACEMEM
 static int64_t memusage=0;
+static int64_t depths=0;
+static int64_t gets=0;
 #endif
 
 struct tcrnode
@@ -46,6 +48,7 @@ struct tcrnode *FUNC(new)(void)
 {
 #ifdef TRACEMEM
     memusage=1;
+    depths=gets=0;
 #endif
     struct tcrnode *n = Zalloc(sizeof(struct tcrnode));
     if (n)
@@ -266,9 +269,16 @@ void *FUNC(remove)(struct tcrnode *restrict n, uint64_t key)
     return value;
 }
 
+#ifdef TRACEMEM
+# define INCDEPTHS util_fetch_and_add64(&depths, 1)
+#else
+# define INCDEPTHS do;while(0)
+#endif
+
 #define GETL(l) \
     if ((l)*SLICE < 64)			\
     {					\
+        INCDEPTHS;			\
         uint64_t nk;			\
         if ((l) && (nk = n->only_key))	\
         {				\
@@ -284,6 +294,9 @@ void *FUNC(remove)(struct tcrnode *restrict n, uint64_t key)
 
 void* FUNC(get)(struct tcrnode *restrict n, uint64_t key)
 {
+#ifdef TRACEMEM
+    util_fetch_and_add64(&gets, 1);
+#endif
     dprintf("get(%016lx)\n", key);
     // for (int lev = LEVELS-1; lev>=0; lev--)
     GETL(15);
@@ -311,6 +324,18 @@ size_t FUNC(get_size)(struct tcrnode *restrict n)
     return memusage*sizeof(struct tcrnode);
 #else
     return 0;
+#endif
+}
+
+void FUNC(get_stats)(void *c, uint64_t *buf, int nstat)
+{
+#ifdef TRACEMEM
+    if (nstat>=1)
+        buf[0]=memusage;
+    if (nstat>=2)
+        buf[1]=depths;
+    if (nstat>=3)
+        buf[2]=gets;
 #endif
 }
 

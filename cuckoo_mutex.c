@@ -55,6 +55,10 @@ size_t cuckoo_mutex_get_size(struct cs *c)
     return ret;
 }
 
+void cuckoo_mutex_get_stats(void *c, uint64_t *buf, int nstat)
+{
+}
+
 uint64_t cuckoo_mutex_debug(struct cs *c, uint64_t arg)
 {
     return 0;
