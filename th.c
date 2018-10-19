@@ -42,6 +42,7 @@ static int bad=0, any_bad=0;
 static int done=0;
 
 static uint64_t the1000[1000];
+static void* the1000p[1000];
 
 #define K 0xdeadbeefcafebabe
 
@@ -55,6 +56,19 @@ static void* thread_read1(void* c)
     while (!done)
     {
         CHECK(hm_get(c, K) == (void*)K);
+        count++;
+    }
+    return (void*)count;
+}
+
+static void* thread_read1p(void* c)
+{
+    void* k = the1000p[0];
+
+    uint64_t count=0;
+    while (!done)
+    {
+        CHECK(hm_get(c, (uint64_t)k) == k);
         count++;
     }
     return (void*)count;
@@ -189,13 +203,22 @@ typedef void *(*thread_func_t)(void *);
 
 static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_func_t wthread)
 {
+    int ptrs = (rpreload<0);
+
     void *c = hm_new();
     if (spreload>=1)
         hm_insert(c, K, (void*)K);
     if (spreload>=2)
         hm_insert(c, 1, (void*)1);
-    for (int i=spreload; i<rpreload; i++)
-        hm_insert(c, the1000[i], (void*)the1000[i]);
+    if (ptrs)
+    {
+        rpreload=-rpreload;
+        for (int i=spreload; i<rpreload; i++)
+            hm_insert(c, (uint64_t)the1000p[i], the1000p[i]);
+    }
+    else
+        for (int i=spreload; i<rpreload; i++)
+            hm_insert(c, the1000[i], (void*)the1000[i]);
 
     pthread_t th[nthreads], wr[nwthreads];
     int ntr=wthread?nrthreads:nthreads;
@@ -265,6 +288,8 @@ int main()
 {
     for (int i=0; i<ARRAYSZ(the1000); i++)
         the1000[i] = rnd64();
+    for (int i=0; i<ARRAYSZ(the1000p); i++)
+        the1000p[i] = malloc(the1000[i]%65536+1);
 
     nthreads = nproc();
     if (!nthreads)
@@ -281,11 +306,15 @@ int main()
     test("read 1-of-2", 2, 0, thread_read1, 0);
     test("read 1-of-1000", 1, 1000, thread_read1, 0);
     test("read 1000-of-1000", 0, 1000, thread_read1000, 0);
+    test("read 1-of-1000 pointers", 0, -1000, thread_read1p, 0);
     test("read 1 write 1000", 1, 0, thread_read1, thread_write1000);
     test("read 1000 write 1000", 0, 1000, thread_read1000, thread_write1000);
     test("read-write-remove", 0, 0, thread_read_write_remove, (thread_func_t)-1);
     test("read 1-of-1 cachekiller", 1, 0, thread_read1_cachekiller, 0);
     test("read 1-of-1000 cachekiller", 1, 1000, thread_read1_cachekiller, 0);
     test("read 1000 write 1000 cachekiller", 0, 1000, thread_read1000_cachekiller, thread_write1000_cachekiller);
+
+    for (int i=0; i<ARRAYSZ(the1000p); i++)
+        free(the1000p[i]);
     return any_bad;
 }
