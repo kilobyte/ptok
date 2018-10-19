@@ -128,7 +128,7 @@ void FUNC(delete)(struct tcrhead *restrict n)
     pthread_mutex_destroy(&n->mutex);
     teardown(&n->root, LEVELS-1);
 #ifdef TRACEMEM
-    if (memusage)
+    if (memusage-=80)
         fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
 #endif
 }
