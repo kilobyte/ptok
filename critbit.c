@@ -54,7 +54,10 @@ void critbit_delete(struct critbit *c)
 
 int critbit_insert(struct critbit *c, uint64_t key, void *value)
 {
-    struct critbit_node *k = Zalloc(sizeof(struct critbit_node));
+    /* We always need two nodes, so alloc them together to reduce malloc's
+     * metadata.  Avoiding malloc inside the mutex is another bonus.
+     */
+    struct critbit_node *k = Zalloc(sizeof(struct critbit_node)*2);
     if (!k)
         return ENOMEM;
     k->path = key;
@@ -83,9 +86,7 @@ int critbit_insert(struct critbit *c, uint64_t key, void *value)
     printf("diff of %016lx at %016lx\n", n->path^key, at);
     printf("our side: %016lx\n", key&at);
 
-    struct critbit_node *m = Zalloc(sizeof(struct critbit_node));
-    if (!m)
-        return UNLOCK, Free(k), ENOMEM;
+    struct critbit_node *m = k+1;
 
     uint64_t dir = !!(key&at);
     m->child[dir] = k;
