@@ -39,7 +39,6 @@ struct tcrnode
 struct tcrleaf
 {
     struct { uint64_t key; void* val; } leaves[SLNODES];
-    uint64_t nchildren;
 };
 
 struct tcrhead
@@ -91,7 +90,7 @@ static __attribute__((unused)) void display(struct tcrnode *restrict n, int lev)
     else
     {
         struct tcrleaf *l = (void*)n;
-        printf("nchildren=%lu\n", l->nchildren);
+        printf("LEAF\n");
         for (uint32_t i=0; i<SLNODES; i++)
             if (l->leaves[i].val)
             {
@@ -155,7 +154,6 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
         memusage+=sizeof(struct tcrleaf);
 #endif
         uint32_t lslice = sl(key, 0);
-        l->nchildren = 1;
         l->leaves[lslice].val = value;
         l->leaves[lslice].key = key;
         n->nodes[slice] = (void*)l;
@@ -196,8 +194,6 @@ static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value
     {
         struct tcrleaf *l = (void*)n;
         uint32_t slice = sl(key, lev);
-        if (!l->leaves[slice].val)
-            l->nchildren++;
         l->leaves[slice].val = value;
         l->leaves[slice].key = key;
         return 0;
@@ -257,15 +253,13 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     if (!lev)
     {
         struct tcrleaf *l = (void*)n;
-        if (l->leaves[slice].val)
-        {
-            *value = l->leaves[slice].val;
-            l->leaves[slice].val = 0;
-            l->leaves[slice].key = 0;
-            return !--l->nchildren;
-        }
-        else
-            return 0;
+        *value = l->leaves[slice].val;
+        l->leaves[slice].val = 0;
+        l->leaves[slice].key = 0;
+        for (uint32_t i = 0; i<SLNODES; i++)
+            if (l->leaves[i].val)
+                return 0;
+        return 1;
     }
 
     if (n->only_key == key && key)
