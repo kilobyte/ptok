@@ -11,6 +11,14 @@
 
 #define printf(...)
 
+//#define TRACEMEM
+
+#ifdef TRACEMEM
+static int64_t memusage=0;
+static int64_t depths=0;
+static int64_t gets=0;
+#endif
+
 struct critbit
 {
     struct critbit_node *root;
@@ -28,6 +36,10 @@ struct critbit *critbit_new(void)
     struct critbit *c = Zalloc(sizeof(struct critbit));
     if (!c)
         return 0;
+#ifdef TRACEMEM
+    memusage=1;
+    depths=gets=0;
+#endif
     pthread_mutex_init(&c->mutex, 0);
     return c;
 }
@@ -64,6 +76,9 @@ int critbit_insert(struct critbit *c, uint64_t key, void *value)
     k->child[0] = value;
 
     pthread_mutex_lock(&c->mutex);
+#ifdef TRACEMEM
+    memusage+=2;
+#endif
     printf("insert %016lx\n", key);
     struct critbit_node *n = c->root;
     if (!n)
@@ -138,21 +153,40 @@ void *critbit_remove(struct critbit *c, uint64_t key)
 
 void* critbit_get(struct critbit *c, uint64_t key)
 {
+#ifdef TRACEMEM
+    util_fetch_and_add64(&gets, 1);
+    util_fetch_and_add64(&depths, 1);
+#endif
     struct critbit_node *n = c->root;
     if (!n)
         return 0;
     while (n->bit)
+#ifdef TRACEMEM
+        util_fetch_and_add64(&depths, 1),
+#endif
         n = n->child[!!(n->bit & key)];
     return (n->path == key) ? n->child[0] : 0;
 }
 
 size_t critbit_get_size(struct critbit *c)
 {
+#ifdef TRACEMEM
+    return memusage*sizeof(struct critbit_node);
+#else
     return 0;
+#endif
 }
 
 void critbit_get_stats(void *c, uint64_t *buf, int nstat)
 {
+#ifdef TRACEMEM
+    if (nstat>=1)
+        buf[0]=memusage;
+    if (nstat>=2)
+        buf[1]=depths;
+    if (nstat>=3)
+        buf[2]=gets;
+#endif
 }
 
 uint64_t critbit_debug(struct critbit *c, uint64_t arg)
