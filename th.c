@@ -36,6 +36,14 @@ static uint64_t rnd_r64(unsigned short xsubi[3])
     return (uint64_t)(uint32_t)(jrand48(xsubi))<<32 | (uint32_t)(jrand48(xsubi));
 }
 
+static void randomize(unsigned short *xsubi)
+{
+    xsubi[0]=pthread_self()>>32;
+    xsubi[1]=pthread_self()>>16;
+    xsubi[2]=pthread_self();
+    //getentropy(xsubi, sizeof(xsubi));
+}
+
 static int bad=0, any_bad=0;
 #define CHECK(x) do if (!(x)) bad=1; while (0)
 #define CHECKP(x,...) do if (!(x)) {bad=1; printf("ERROR: "__VA_ARGS__);} while (0)
@@ -92,9 +100,7 @@ static void* thread_read1000(void* c)
 static void* thread_write1000(void* c)
 {
     unsigned short xsubi[3];
-    xsubi[0]=pthread_self()>>32;
-    xsubi[1]=pthread_self()>>16;
-    xsubi[2]=pthread_self();
+    randomize(xsubi);
     uint64_t w1000[1000];
     for (int i=0; i<ARRAYSZ(w1000); i++)
         w1000[i] = rnd_r64(xsubi);
@@ -117,7 +123,7 @@ static void* thread_write1000(void* c)
 static void* thread_read_write_remove(void* c)
 {
     unsigned short xsubi[3];
-    getentropy(xsubi, sizeof(xsubi));
+    randomize(xsubi);
     uint64_t count=0;
     while (!done)
     {
