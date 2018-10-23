@@ -64,7 +64,7 @@ static void test_insert_delete1M()
 
 static void test_insert_bulk_delete1M()
 {
-    #define MAX (32*1048576)
+    #define MAX (1048576)
     void *c = hm_new();
     for (long i=0; i<MAX; i++)
     {
