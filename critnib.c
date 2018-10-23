@@ -4,7 +4,7 @@
 
 //#define DEBUG_SPAM
 #ifndef DEBUG_SPAM
-#define printf(...) 0
+#define printf(...) (void)0
 #endif
 
 //#define TRACEMEM
@@ -70,6 +70,10 @@ void critnib_delete(struct critnib *c)
 
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
 
+#ifndef DEBUG_SPAM
+# define print_nib(...) (void)0
+# define display(...) (void)0
+#else
 static void print_nib(uint64_t key, uint32_t sh)
 {
     if (sh == ENDBIT)
@@ -112,6 +116,7 @@ static void display(struct critnib_node *n)
         printf(" ");
     printf("──────────────────────────────\n");
 }
+#endif
 
 int critnib_insert(struct critnib *c, uint64_t key, void *value)
 {
@@ -156,9 +161,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
         printf("in-place update of ");print_nib(key, n->shift);printf("\n");
         n->child[(key >> n->shift) & 0xf] = k;
         // LEAKED: k+1
-        #ifdef DEBUG_SPAM
         display(c->root);
-        #endif
         return UNLOCK, 0;
     }
 
@@ -184,10 +187,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
     m->path = key & ((1L<<sh)-1);
     *parent = m;
 
-#ifdef DEBUG_SPAM
     display(c->root);
-#endif
-
     return UNLOCK, 0;
 }
 
@@ -238,9 +238,7 @@ void *critnib_remove(struct critnib *c, uint64_t key)
 
     *n_parent = n->child[ochild];
     // n and k LEAKED!!!
-#ifdef DEBUG_SPAM
     display(c->root);
-#endif
     return UNLOCK, k->child[0];
 }
 
