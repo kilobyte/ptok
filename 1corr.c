@@ -100,6 +100,8 @@ static void test_ffffffff_and_friends()
         hm_insert(c, vals[i], (void*)~vals[i]);
     for (int i=0; i<ARRAYSZ(vals); i++)
         CHECK(hm_get(c, vals[i]) == (void*)~vals[i]);
+    for (int i=0; i<ARRAYSZ(vals); i++)
+        CHECK(hm_remove(c, vals[i]) == (void*)~vals[i]);
     hm_delete(c);
 }
 
