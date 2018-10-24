@@ -46,6 +46,8 @@ struct tcrhead
     struct tcrnode root;
     uint64_t pad[5]; // TODO: is avoiding cacheline dirtying worth it?
     pthread_mutex_t mutex;
+    struct tcrleaf *deleted_leaf;
+    struct tcrnode *deleted_node;
 };
 
 #define TOP_EMPTY 0xffffffffffffffff
@@ -125,29 +127,81 @@ static void teardown(struct tcrnode *restrict n, int lev)
 void FUNC(delete)(struct tcrhead *restrict n)
 {
     pthread_mutex_destroy(&n->mutex);
+    for (struct tcrleaf *l = n->deleted_leaf; l; )
+    {
+        struct tcrleaf *ll=(void*)l->leaves[0].key;
+        Free(l);
+#ifdef TRACEMEM
+        memusage -= sizeof(struct tcrleaf);
+#endif
+        l=ll;
+    }
+    for (struct tcrnode *m = n->deleted_node; m; )
+    {
+        struct tcrnode *mm=m->nodes[0];
+        Free(m);
+#ifdef TRACEMEM
+        memusage -= sizeof(struct tcrnode);
+#endif
+        m=mm;
+    }
     teardown(&n->root, LEVELS-1);
 #ifdef TRACEMEM
-    if (memusage-=80)
+    if (memusage-=sizeof(struct tcrhead)-sizeof(struct tcrnode))
         fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
 #endif
 }
 
-static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value);
+static struct tcrleaf *alloc_leaf(struct tcrhead *c)
+{
+    if (!c->deleted_leaf)
+        return Zalloc(sizeof(struct tcrleaf));
+    struct tcrleaf *n = c->deleted_leaf;
+    c->deleted_leaf = (struct tcrleaf *)n->leaves[0].key;
+    n->leaves[0].key = 0;
 
-static inline int insert_child(struct tcrnode *restrict n, int lev,
+#ifdef DEBUG_SPAM
+    for (size_t i=0; i<sizeof(*n); i++)
+        if (((const char*)(n))[i])
+            fprintf(stderr, "reclaimed leaf not clean at byte %zx\n", i);
+#endif
+
+    return n;
+}
+
+static struct tcrnode *alloc_node(struct tcrhead *c)
+{
+    if (!c->deleted_node)
+        return Zalloc(sizeof(struct tcrnode));
+    struct tcrnode *n = c->deleted_node;
+    c->deleted_node = n->nodes[0];
+    n->nodes[0] = 0;
+
+#ifdef DEBUG_SPAM
+    for (size_t i=0; i<sizeof(*n); i++)
+        if (((const char*)(n))[i])
+            fprintf(stderr, "reclaimed node not clean at byte %zx\n", i);
+#endif
+
+    return n;
+}
+
+static int insert(struct tcrhead *restrict c, struct tcrnode *restrict n, int lev, uint64_t key, void *value);
+
+static inline int insert_child(struct tcrhead *restrict c, struct tcrnode *restrict n, int lev,
                                uint64_t key, void *value)
 {
     uint32_t slice = sl(key, lev);
     struct tcrnode *restrict m;
 
     if ((m = n->nodes[slice]))
-        return insert(m, lev-1, key, value);
+        return insert(c, m, lev-1, key, value);
 
     dprintf("new alloc @%d %02x key=%016lx\n", lev, slice, key);
     if (lev == 1)
     {
         dprintf("-- for lev=0, key=%016lx\n", key);
-        struct tcrleaf *restrict l = Zalloc(sizeof(struct tcrleaf));
+        struct tcrleaf *restrict l = alloc_leaf(c);
         if (!l)
             return ENOMEM;
 #ifdef TRACEMEM
@@ -161,7 +215,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
         return 0;
     }
 
-    m = Zalloc(sizeof(struct tcrnode));
+    m = alloc_node(c);
 #ifdef TRACEMEM
     memusage+=sizeof(struct tcrnode);
 #endif
@@ -174,7 +228,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
     if (!key) // nasty special case: key of 0
     {
         dprintf("inserting 0 @%d\n", lev);
-        int ret = insert(m, lev-1, key, value);
+        int ret = insert(c, m, lev-1, key, value);
         if (ret)
         {
             teardown(m, lev-1);
@@ -186,7 +240,7 @@ static inline int insert_child(struct tcrnode *restrict n, int lev,
     return 0;
 }
 
-static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value)
+static int insert(struct tcrhead *restrict c, struct tcrnode *restrict n, int lev, uint64_t key, void *value)
 {
     dprintf("@%d: %02x\n", lev, sl(key, lev));
 
@@ -210,7 +264,7 @@ static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value
         {
             // need to materialize the has-been-only node
             dprintf("◘ ");
-            int ret = insert_child(n, lev, n->only_key, n->only_val);
+            int ret = insert_child(c, n, lev, n->only_key, n->only_val);
             if (ret)
                 return ret;
             n->only_key = 0;
@@ -218,7 +272,7 @@ static int insert(struct tcrnode *restrict n, int lev, uint64_t key, void *value
     }
 
     dprintf("⦿ ");
-    return insert_child(n, lev, key, value);
+    return insert_child(c, n, lev, key, value);
 }
 
 int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
@@ -236,7 +290,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
         n->root.only_key = key;
     }
 
-    int ret = insert(&n->root, LEVELS-1, key, value);
+    int ret = insert(n, &n->root, LEVELS-1, key, value);
     pthread_mutex_unlock(&n->mutex);
     if (ret)
         return ret;
@@ -246,7 +300,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
 }
 
 /* return 1 if we removed last subtree, making n empty */
-static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**restrict value)
+static int nremove(struct tcrhead *c, struct tcrnode *restrict n, int lev, uint64_t key, void**restrict value)
 {
     uint32_t slice = sl(key, lev);
     dprintf("-> %d: %02x\n", lev, slice);
@@ -271,14 +325,22 @@ static int nremove(struct tcrnode *restrict n, int lev, uint64_t key, void**rest
     struct tcrnode *m = n->nodes[slice];
     if (m)
     {
-        if (!nremove(m, lev-1, key, value))
+        if (!nremove(c, m, lev-1, key, value))
             return 0;
         dprintf("freed @%d [%u] for %016lx\n", lev, slice, key);
         n->nodes[slice] = 0;
-        Free(m);
-        #ifdef TRACEMEM
-        memusage-=lev==1 ? sizeof(struct tcrleaf) : sizeof(struct tcrnode);
-        #endif
+        if (lev==1)
+        {
+            struct tcrleaf *l = (void*)m;
+            l->leaves[0].key = (uint64_t)c->deleted_leaf;
+            c->deleted_leaf = l;
+        }
+        else
+        {
+            m->only_val = 0; /* clear it for the next user */
+            m->nodes[0] = c->deleted_node;
+            c->deleted_node = m;
+        }
         n->nchildren--;
     }
 
@@ -290,7 +352,7 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
     dprintf("\e[33mremove(%016lx)\e[0m\n", key);
     void* value = 0;
     pthread_mutex_lock(&n->mutex);
-    nremove(&n->root, LEVELS-1, key, &value);
+    nremove(n, &n->root, LEVELS-1, key, &value);
     pthread_mutex_unlock(&n->mutex);
     //display(&n->root, LEVELS-1);
     return value;
