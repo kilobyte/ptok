@@ -76,7 +76,8 @@ static inline uint32_t sl(uint64_t key, int lev)
     return key>>(lev*SLICE) & (SLNODES-1);
 }
 
-static __attribute__((unused)) void display(struct tcrnode *restrict n, int lev)
+#ifdef DEBUG_SPAM
+static void display(struct tcrnode *restrict n, int lev)
 {
     for (int k=lev; k<LEVELS; k++)
         printf(" ");
@@ -107,6 +108,9 @@ static __attribute__((unused)) void display(struct tcrnode *restrict n, int lev)
             }
     }
 }
+#else
+#define display(...)
+#endif
 
 static void teardown(struct tcrnode *restrict n, int lev)
 {
@@ -300,7 +304,7 @@ int FUNC(insert)(struct tcrhead *restrict n, uint64_t key, void *value)
     if (ret)
         return ret;
 
-    //display(&n->root, LEVELS-1);
+    display(&n->root, LEVELS-1);
     return 0;
 }
 
@@ -359,7 +363,7 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
     pthread_mutex_lock(&n->mutex);
     nremove(n, &n->root, LEVELS-1, key, &value);
     pthread_mutex_unlock(&n->mutex);
-    //display(&n->root, LEVELS-1);
+    display(&n->root, LEVELS-1);
     return value;
 }
 
