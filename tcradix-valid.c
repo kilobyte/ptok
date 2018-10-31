@@ -44,7 +44,12 @@ struct tcrleaf
 struct tcrhead
 {
     struct tcrnode root;
-    uint64_t pad[5]; // TODO: is avoiding cacheline dirtying worth it?
+
+    /*
+     * Probably doesn't matter, but let's not keep the write lock in the
+     * hottest cacheline of reads.
+     */
+    uint64_t pad[5];
     pthread_mutex_t mutex;
     struct tcrleaf *deleted_leaf;
     struct tcrnode *deleted_node;
