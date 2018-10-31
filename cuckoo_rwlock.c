@@ -58,9 +58,8 @@ static inline void rwlock_write_leave(struct cs *c)
 
 struct cs *cuckoo_rwlock_new(void)
 {
-    struct cs *c = malloc(sizeof(struct cs));
+    struct cs *c = Zalloc(sizeof(struct cs));
     c->c=cuckoo_new();
-    c->lock=0;
     pthread_mutex_init(&c->mutex, 0);
     return c;
 }
@@ -69,6 +68,7 @@ void cuckoo_rwlock_delete(struct cs *c)
 {
     pthread_mutex_destroy(&c->mutex);
     cuckoo_delete(c->c);
+    Free(c);
 }
 
 int cuckoo_rwlock_insert(struct cs *c, uint64_t key, void *value)
