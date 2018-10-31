@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
+#include "util.h"
 #include "cuckoo.h"
 
 struct cs
@@ -11,7 +12,7 @@ struct cs
 
 struct cs *cuckoo_mutex_new(void)
 {
-    struct cs *c = malloc(sizeof(struct cs));
+    struct cs *c = Malloc(sizeof(struct cs));
     c->c=cuckoo_new();
     pthread_mutex_init(&c->mutex, 0);
     return c;
@@ -21,6 +22,7 @@ void cuckoo_mutex_delete(struct cs *c)
 {
     pthread_mutex_destroy(&c->mutex);
     cuckoo_delete(c->c);
+    Free(c);
 }
 
 int cuckoo_mutex_insert(struct cs *c, uint64_t key, void *value)
