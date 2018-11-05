@@ -6,7 +6,7 @@ OBJ=cuckoo.o util.o out.o cuckoo_mutex.o cuckoo_rwlock.o hmload.o \
 	tcradix-mutex_4.o tcradix-mutex_5.o tcradix-mutex_6.o tcradix-mutex_7.o \
 	radix_8.o radix_11.o radix_13.o radix_16.o \
 	radix_4.o radix_5.o radix_6.o radix_7.o \
-	tlog.o critbit.o tcradix-valid.o critnib.o \
+	tlog.o critbit.o tcradix-valid.o critnib.o tcradix-atcount.o \
 
 CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
