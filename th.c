@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include "hmproto.h"
 #include "tlog.h"
 
@@ -38,10 +39,11 @@ static uint64_t rnd_r64(unsigned short xsubi[3])
 
 static void randomize(unsigned short *xsubi)
 {
+    if (syscall(SYS_getrandom, xsubi, sizeof(xsubi), 0) == sizeof(xsubi))
+        return;
     xsubi[0]=pthread_self()>>32;
     xsubi[1]=pthread_self()>>16;
     xsubi[2]=pthread_self();
-    //getentropy(xsubi, sizeof(xsubi));
 }
 
 static int bad=0, any_bad=0;
