@@ -288,7 +288,6 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
 
 void* FUNC(get)(struct tcrhead *restrict h, uint64_t key)
 {
-    struct tcrnode *restrict n = (struct tcrnode*)h;
 #ifdef TRACEMEM
     util_fetch_and_add64(&gets, 1);
 #endif
@@ -296,6 +295,7 @@ void* FUNC(get)(struct tcrhead *restrict h, uint64_t key)
 retry:;
     uint64_t wrs1, wrs2;
     util_atomic_load_explicit64(&h->write_status, &wrs1, memory_order_acquire);
+    struct tcrnode *restrict n = (struct tcrnode*)h;
     // for (int lev = LEVELS-1; lev>=0; lev--)
     GETL(15);
     GETL(14);
