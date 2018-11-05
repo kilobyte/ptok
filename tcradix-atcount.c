@@ -286,16 +286,24 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
             return 0;			\
     }
 
-void* FUNC(get)(struct tcrhead *restrict h, uint64_t key)
+/*
+ * Yes, this loop is 100% identical as the function below.  Somehow, gcc at
+ * -O1 and higher misoptimizes it much _slower_ than -Og/-O0, unless we copy
+ * it to a separate function for the 2nd and further iterations.
+ */
+static void* get_slow(struct tcrhead *restrict h, uint64_t key)
 {
-#ifdef TRACEMEM
-    util_fetch_and_add64(&gets, 1);
-#endif
-    dprintf("get(%016lx)\n", key);
-retry:;
+    struct tcrnode *restrict n;
     uint64_t wrs1, wrs2;
+retry:
     util_atomic_load_explicit64(&h->write_status, &wrs1, memory_order_acquire);
-    struct tcrnode *restrict n = (struct tcrnode*)h;
+    if (wrs1 & 1)
+    {
+        sched_yield();
+        goto retry;
+    }
+
+    n = (struct tcrnode*)h;
     // for (int lev = LEVELS-1; lev>=0; lev--)
     GETL(15);
     GETL(14);
@@ -317,6 +325,38 @@ retry:;
     if (wrs1 != wrs2)
         goto retry;
     return n;
+}
+
+void* FUNC(get)(struct tcrhead *restrict h, uint64_t key)
+{
+#ifdef TRACEMEM
+    util_fetch_and_add64(&gets, 1);
+#endif
+    dprintf("get(%016lx)\n", key);
+    uint64_t wrs1, wrs2;
+    util_atomic_load_explicit64(&h->write_status, &wrs1, memory_order_acquire);
+    if (wrs1 & 1)
+        return get_slow(h, key);
+    struct tcrnode *restrict n = (struct tcrnode*)h;
+    // for (int lev = LEVELS-1; lev>=0; lev--)
+    GETL(15);
+    GETL(14);
+    GETL(13);
+    GETL(12);
+    GETL(11);
+    GETL(10);
+    GETL(9);
+    GETL(8);
+    GETL(7);
+    GETL(6);
+    GETL(5);
+    GETL(4);
+    GETL(3);
+    GETL(2);
+    GETL(1);
+    GETL(0);
+    util_atomic_load_explicit64(&h->write_status, &wrs2, memory_order_acquire);
+    return (wrs1 != wrs2) ? get_slow(h, key) : n;
 }
 
 size_t FUNC(get_size)(struct tcrhead *restrict n)
