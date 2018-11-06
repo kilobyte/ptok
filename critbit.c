@@ -23,6 +23,7 @@ struct critbit
 {
     struct critbit_node *root;
     pthread_mutex_t mutex;
+    struct critbit_node *deleted_node;
 };
 
 struct critbit_node
@@ -44,22 +45,57 @@ struct critbit *critbit_new(void)
     return c;
 }
 
-static void delete_node(struct critbit_node *n)
+static void free_node(struct critbit *c, struct critbit_node *n)
+{
+    n->child[0] = c->deleted_node;
+    c->deleted_node = n;
+}
+
+static void delete_node(struct critbit *c, struct critbit_node *n)
 {
     if (!n->bit)
-        return;
+        return free_node(c, n); /* can't free it immediately */
     if (n->child[0])
-        delete_node(n->child[0]);
+        delete_node(c, n->child[0]);
     if (n->child[1])
-        delete_node(n->child[1]);
+        delete_node(c, n->child[1]);
 }
 
 void critbit_delete(struct critbit *c)
 {
     if (c->root)
-        delete_node(c->root);
+        delete_node(c, c->root);
     pthread_mutex_destroy(&c->mutex);
+    for (struct critbit_node *m = c->deleted_node; m; )
+    {
+        struct critbit_node *mm=m->child[0];
+        Free(m);
+#ifdef TRACEMEM
+        memusage -= 2;
+#endif
+        m=mm;
+    }
     Free(c);
+}
+
+static struct critbit_node *alloc_node(struct critbit *c)
+{
+    if (1 || !c->deleted_node)
+        return Zalloc(sizeof(struct critbit_node)*2);
+    struct critbit_node *n = c->deleted_node;
+    c->deleted_node = n->child[0];
+    n->child[0] = 0;
+    n->child[1] = 0;
+    n->path = 0;
+    n->bit = 0;
+
+#ifdef DEBUG_SPAM
+    for (size_t i=0; i<sizeof(*n); i++)
+        if (((const char*)(n))[i])
+            fprintf(stderr, "reclaimed node not clean at byte %zx\n", i);
+#endif
+
+    return n;
 }
 
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
@@ -69,7 +105,7 @@ int critbit_insert(struct critbit *c, uint64_t key, void *value)
     /* We always need two nodes, so alloc them together to reduce malloc's
      * metadata.  Avoiding malloc inside the mutex is another bonus.
      */
-    struct critbit_node *k = Zalloc(sizeof(struct critbit_node)*2);
+    struct critbit_node *k = alloc_node(c);
     if (!k)
         return ENOMEM;
     k->path = key;
@@ -125,8 +161,9 @@ void *critbit_remove(struct critbit *c, uint64_t key)
         if (n->path == key)
         {
             c->root = 0;
-            // LEAKED!!!
-            return UNLOCK, n->child[0];
+            void* value = n->child[0];
+            free_node(c, n);
+            return UNLOCK, value;
         }
         return UNLOCK, NULL;
     }
@@ -147,8 +184,9 @@ void *critbit_remove(struct critbit *c, uint64_t key)
         *n_parent = n->child[1];
     else
         *n_parent = n->child[0];
-    // n and k LEAKED!!!
-    return UNLOCK, k->child[0];
+    void* value = k->child[0];
+    free_node(c, k);
+    return UNLOCK, value;
 }
 
 void* critbit_get(struct critbit *c, uint64_t key)
