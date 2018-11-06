@@ -267,12 +267,16 @@ static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_f
     hm_delete(c);
 }
 
+static int only_hm = -1;
+
 static void test(const char *name, int spreload, int rpreload,
     thread_func_t rthread, thread_func_t wthread)
 {
     printf("TEST: %s\n", name);
 
-    for (int i=0; i<ARRAYSZ(hms); i++)
+    int hmin = (only_hm<0)?0:only_hm;
+    int hmax = (only_hm>=0 && only_hm<ARRAYSZ(hms))?only_hm:ARRAYSZ(hms)-1;
+    for (int i=hmin; i<=hmax; i++)
     {
         hm_select(i);
         if (wthread && hm_immutable)
@@ -292,8 +296,23 @@ static void test(const char *name, int spreload, int rpreload,
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    int opt;
+    while ((opt = getopt(argc, argv, "a:")) != -1)
+    {
+        switch (opt)
+        {
+        case 'a':
+            only_hm = atoi(optarg);
+            break;
+        default:
+            exit(1);
+        }
+    }
+    if (optind < argc)
+        return fprintf(stderr, "%s: unknown arg '%s'\n", argv[0], argv[optind]), 1;
+
     for (int i=0; i<ARRAYSZ(the1000); i++)
         the1000[i] = rnd64();
     for (int i=0; i<ARRAYSZ(the1000p); i++)
