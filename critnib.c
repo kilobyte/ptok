@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "util.h"
 
 //#define DEBUG_SPAM
@@ -19,6 +20,7 @@ struct critnib
 {
     struct critnib_node *root;
     pthread_mutex_t mutex;
+    struct critnib_node *deleted_node;
 };
 
 struct critnib_node
@@ -43,7 +45,7 @@ struct critnib *critnib_new(void)
         return 0;
     c->root = &nullnode;
 #ifdef TRACEMEM
-    memusage=1;
+    memusage=0;
     depths=gets=0;
 #endif
     pthread_mutex_init(&c->mutex, 0);
@@ -52,12 +54,19 @@ struct critnib *critnib_new(void)
 
 static void delete_node(struct critnib_node *n)
 {
-    if (n->shift == ENDBIT)
+    if (n == &nullnode)
         return;
-    for (int i=0; i<16; i++)
-        if (n->child[i])
-            delete_node(n->child[i]);
-    // TODO: actually free the memory
+
+    if (n->shift != ENDBIT)
+    {
+        for (int i=0; i<16; i++)
+            if (n->child[i])
+                delete_node(n->child[i]);
+    }
+#ifdef TRACEMEM
+    memusage--;
+#endif
+    Free(n);
 }
 
 void critnib_delete(struct critnib *c)
@@ -65,7 +74,29 @@ void critnib_delete(struct critnib *c)
     if (c->root)
         delete_node(c->root);
     pthread_mutex_destroy(&c->mutex);
+    for (struct critnib_node *m = c->deleted_node; m; )
+    {
+        struct critnib_node *mm=m->child[0];
+        Free(m);
+#ifdef TRACEMEM
+        memusage--;
+#endif
+        m=mm;
+    }
     Free(c);
+#ifdef TRACEMEM
+    if (memusage)
+        fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
+#endif
+}
+
+static void free_node(struct critnib *c, struct critnib_node *n)
+{
+    //n->child[0] = c->deleted_node;
+    //c->deleted_node = n;
+#ifdef TRACEMEM
+    memusage--;
+#endif
 }
 
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
@@ -123,7 +154,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
     /* We always need two nodes, so alloc them together to reduce malloc's
      * metadata.  Avoiding malloc inside the mutex is another bonus.
      */
-    struct critnib_node *k = Zalloc(sizeof(struct critnib_node)*2);
+    struct critnib_node *k = Zalloc(sizeof(struct critnib_node));
     if (!k)
         return ENOMEM;
     k->path = key;
@@ -132,7 +163,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
 
     pthread_mutex_lock(&c->mutex);
 #ifdef TRACEMEM
-    memusage+=2;
+    memusage++;
 #endif
     printf("\e[33minsert %016lx\e[0m\n", key);
     struct critnib_node *n = c->root;
@@ -159,7 +190,6 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
         n = prev;
         printf("in-place update of ");print_nib(key, n->shift);printf("\n");
         n->child[(key >> n->shift) & 0xf] = k;
-        // LEAKED: k+1
         display(c->root);
         return UNLOCK, 0;
     }
@@ -175,7 +205,15 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
     print_nib(0xfL<<sh, sh);
     printf("\n");
 
-    struct critnib_node *m = k+1;
+    struct critnib_node *m = Zalloc(sizeof(struct critnib_node));
+    if (!m)
+    {
+        free_node(c, k);
+        return UNLOCK, ENOMEM;
+    }
+#ifdef TRACEMEM
+    memusage++;
+#endif
 
     for (int i=0; i<16; i++)
         m->child[i] = &nullnode;
@@ -203,8 +241,9 @@ void *critnib_remove(struct critnib *c, uint64_t key)
         if (n->path == key)
         {
             c->root = &nullnode;
-            // LEAKED!!!
-            return UNLOCK, n->child[0];
+            void* value = n->child[0];
+            free_node(c, n);
+            return UNLOCK, value;
         }
         return UNLOCK, NULL;
     }
@@ -228,7 +267,11 @@ void *critnib_remove(struct critnib *c, uint64_t key)
         if (n->child[i] != &nullnode)
         {
             if (ochild != -1)
-                return UNLOCK, k->child[0];
+            {
+                void* value = k->child[0];
+                free_node(c, k);
+                return UNLOCK, value;
+            }
             else
                 ochild = i;
         }
@@ -236,9 +279,11 @@ void *critnib_remove(struct critnib *c, uint64_t key)
         ochild = 0;
 
     *n_parent = n->child[ochild];
-    // n and k LEAKED!!!
+    void* value = k->child[0];
+    free_node(c, n);
+    free_node(c, k);
     display(c->root);
-    return UNLOCK, k->child[0];
+    return UNLOCK, value;
 }
 
 void* critnib_get(struct critnib *c, uint64_t key)
