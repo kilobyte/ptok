@@ -156,8 +156,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
 
     if (n == &nullnode)
     {
-        printf("-- we're in nullnode\n");
-        n = prev; // FIXME: not if we're root
+        n = prev;
         printf("in-place update of ");print_nib(key, n->shift);printf("\n");
         n->child[(key >> n->shift) & 0xf] = k;
         // LEAKED: k+1
