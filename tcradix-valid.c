@@ -156,7 +156,8 @@ void FUNC(delete)(struct tcrhead *restrict n)
     }
     teardown(&n->root, LEVELS-1);
 #ifdef TRACEMEM
-    if (memusage-=sizeof(struct tcrhead)-sizeof(struct tcrnode))
+    memusage -= sizeof(struct tcrhead)-sizeof(struct tcrnode);
+    if (memusage)
         fprintf(stderr, "==== memory leak: %ld left ====\n", memusage), abort();
 #endif
 }
@@ -343,12 +344,18 @@ static int nremove(struct tcrhead *c, struct tcrnode *restrict n, int lev, uint6
             struct tcrleaf *l = (void*)m;
             l->leaves[0].key = (uint64_t)c->deleted_leaf;
             c->deleted_leaf = l;
+#ifdef TRACEMEM
+            memusage-=sizeof(struct tcrleaf);
+#endif
         }
         else
         {
             m->only_val = 0; /* clear it for the next user */
             m->nodes[0] = c->deleted_node;
             c->deleted_node = m;
+#ifdef TRACEMEM
+            memusage-=sizeof(struct tcrnode);
+#endif
         }
         n->nchildren--;
     }

@@ -114,9 +114,6 @@ void FUNC(delete)(struct tcrhead *restrict n)
     {
         struct tcrnode *mm=m->nodes[0];
         Free(m);
-#ifdef TRACEMEM
-        memusage -= sizeof(struct tcrnode);
-#endif
         m=mm;
     }
     teardown(&n->root, LEVELS-1);
@@ -313,11 +310,11 @@ void *FUNC(remove)(struct tcrhead *restrict n, uint64_t key)
             if (nk == key)		\
                 return n->only_val;	\
             else			\
-                return 0;		\
+                return NULL;		\
         }				\
         n = n->nodes[sl(key, (l))];	\
         if (!n)				\
-            return 0;			\
+            return NULL;		\
     }
 
 /*
