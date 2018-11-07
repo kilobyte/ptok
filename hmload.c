@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "hmproto.h"
 
-struct hm hms[22] =
+struct hm hms[21] =
 {
     HM_ARR(cuckoo, 1),
     HM_ARR(cuckoo_mutex, 0),
@@ -32,7 +32,6 @@ struct hm hms[22] =
 //  HM_ARR(radix13, 0),
 //  HM_ARR(radix16, 0),
     HM_ARR(critbit, 0),
-    HM_ARR(tcradix_valid, 0),
     HM_ARR(critnib, 0),
     HM_ARR(tcradix_atcount, 0),
 };
