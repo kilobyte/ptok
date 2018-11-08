@@ -11,33 +11,6 @@
     void x##_get_stats(void *c, uint64_t *buf, int nstat);\
     uint64_t x##_debug(void *c, uint64_t arg);
 
-HM_PROTOS(cuckoo)
-HM_PROTOS(cuckoo_mutex)
-HM_PROTOS(cuckoo_rwlock)
-HM_PROTOS(tcradix4)
-HM_PROTOS(tcradix5)
-HM_PROTOS(tcradix6)
-HM_PROTOS(tcradix7)
-HM_PROTOS(tcradix8)
-HM_PROTOS(tcradix11)
-HM_PROTOS(tcradix13)
-HM_PROTOS(tcradix16)
-HM_PROTOS(tcradix_mutex4)
-HM_PROTOS(tcradix_mutex5)
-HM_PROTOS(tcradix_mutex6)
-HM_PROTOS(tcradix_mutex7)
-HM_PROTOS(tcradix_mutex8)
-HM_PROTOS(tcradix_mutex11)
-HM_PROTOS(tcradix_mutex13)
-HM_PROTOS(tcradix_mutex16)
-HM_PROTOS(radix4)
-HM_PROTOS(radix5)
-HM_PROTOS(radix6)
-HM_PROTOS(radix7)
-HM_PROTOS(radix8)
-HM_PROTOS(radix11)
-HM_PROTOS(radix13)
-HM_PROTOS(radix16)
 HM_PROTOS(critbit)
 HM_PROTOS(critnib)
 HM_PROTOS(tcradix_atcount)
@@ -79,6 +52,6 @@ struct hm
     uint64_t (*hm_debug)(void *c, uint64_t arg);
     const char *hm_name;
     int hm_immutable;
-} hms[21];
+} hms[3];
 
 void hm_select(int i);
