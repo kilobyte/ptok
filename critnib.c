@@ -7,6 +7,7 @@
 #ifndef DEBUG_SPAM
 #define printf(...) (void)0
 #endif
+#define FUNC(x) critnib_##x
 
 //#define TRACEMEM
 
@@ -38,7 +39,7 @@ static struct critnib_node nullnode =
     0, ENDBIT
 };
 
-struct critnib *critnib_new(void)
+struct critnib *FUNC(new)(void)
 {
     struct critnib *c = Zalloc(sizeof(struct critnib));
     if (!c)
@@ -69,7 +70,7 @@ static void delete_node(struct critnib_node *n)
     Free(n);
 }
 
-void critnib_delete(struct critnib *c)
+void FUNC(delete)(struct critnib *c)
 {
     if (c->root)
         delete_node(c->root);
@@ -149,7 +150,7 @@ static void display(struct critnib_node *n)
 }
 #endif
 
-int critnib_insert(struct critnib *c, uint64_t key, void *value)
+int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
 {
     /* We always need two nodes, so alloc them together to reduce malloc's
      * metadata.  Avoiding malloc inside the mutex is another bonus.
@@ -228,7 +229,7 @@ int critnib_insert(struct critnib *c, uint64_t key, void *value)
     return UNLOCK, 0;
 }
 
-void *critnib_remove(struct critnib *c, uint64_t key)
+void *FUNC(remove)(struct critnib *c, uint64_t key)
 {
     printf("\e[33mremove %016lx\e[0m\n", key);
     pthread_mutex_lock(&c->mutex);
@@ -286,7 +287,7 @@ void *critnib_remove(struct critnib *c, uint64_t key)
     return UNLOCK, value;
 }
 
-void* critnib_get(struct critnib *c, uint64_t key)
+void* FUNC(get)(struct critnib *c, uint64_t key)
 {
     printf("\e[33mget %016lx\e[0m\n", key);
 #ifdef TRACEMEM
@@ -304,7 +305,7 @@ void* critnib_get(struct critnib *c, uint64_t key)
     return (n->path == key) ? n->child[0] : 0;
 }
 
-size_t critnib_get_size(struct critnib *c)
+size_t FUNC(get_size)(struct critnib *c)
 {
 #ifdef TRACEMEM
     return memusage*sizeof(struct critnib_node);
@@ -313,7 +314,7 @@ size_t critnib_get_size(struct critnib *c)
 #endif
 }
 
-void critnib_get_stats(void *c, uint64_t *buf, int nstat)
+void FUNC(get_stats)(void *c, uint64_t *buf, int nstat)
 {
 #ifdef TRACEMEM
     if (nstat>=1)
@@ -325,7 +326,7 @@ void critnib_get_stats(void *c, uint64_t *buf, int nstat)
 #endif
 }
 
-uint64_t critnib_debug(struct critnib *c, uint64_t arg)
+uint64_t FUNC(debug)(struct critnib *c, uint64_t arg)
 {
     return 0;
 }

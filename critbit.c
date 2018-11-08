@@ -10,6 +10,7 @@
  */
 
 #define printf(...)
+#define FUNC(x) critbit_##x
 
 //#define TRACEMEM
 
@@ -32,7 +33,7 @@ struct critbit_node
     uint64_t path, bit;
 };
 
-struct critbit *critbit_new(void)
+struct critbit *FUNC(new)(void)
 {
     struct critbit *c = Zalloc(sizeof(struct critbit));
     if (!c)
@@ -61,7 +62,7 @@ static void delete_node(struct critbit *c, struct critbit_node *n)
         delete_node(c, n->child[1]);
 }
 
-void critbit_delete(struct critbit *c)
+void FUNC(delete)(struct critbit *c)
 {
     if (c->root)
         delete_node(c, c->root);
@@ -100,7 +101,7 @@ static struct critbit_node *alloc_node(struct critbit *c)
 
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
 
-int critbit_insert(struct critbit *c, uint64_t key, void *value)
+int FUNC(insert)(struct critbit *c, uint64_t key, void *value)
 {
     /* We always need two nodes, so alloc them together to reduce malloc's
      * metadata.  Avoiding malloc inside the mutex is another bonus.
@@ -149,7 +150,7 @@ int critbit_insert(struct critbit *c, uint64_t key, void *value)
     return UNLOCK, 0;
 }
 
-void *critbit_remove(struct critbit *c, uint64_t key)
+void *FUNC(remove)(struct critbit *c, uint64_t key)
 {
     pthread_mutex_lock(&c->mutex);
 
@@ -189,7 +190,7 @@ void *critbit_remove(struct critbit *c, uint64_t key)
     return UNLOCK, value;
 }
 
-void* critbit_get(struct critbit *c, uint64_t key)
+void* FUNC(get)(struct critbit *c, uint64_t key)
 {
 #ifdef TRACEMEM
     util_fetch_and_add64(&gets, 1);
@@ -206,7 +207,7 @@ void* critbit_get(struct critbit *c, uint64_t key)
     return (n->path == key) ? n->child[0] : 0;
 }
 
-size_t critbit_get_size(struct critbit *c)
+size_t FUNC(get_size)(struct critbit *c)
 {
 #ifdef TRACEMEM
     return memusage*sizeof(struct critbit_node);
@@ -215,7 +216,7 @@ size_t critbit_get_size(struct critbit *c)
 #endif
 }
 
-void critbit_get_stats(void *c, uint64_t *buf, int nstat)
+void FUNC(get_stats)(void *c, uint64_t *buf, int nstat)
 {
 #ifdef TRACEMEM
     if (nstat>=1)
@@ -227,7 +228,7 @@ void critbit_get_stats(void *c, uint64_t *buf, int nstat)
 #endif
 }
 
-uint64_t critbit_debug(struct critbit *c, uint64_t arg)
+uint64_t FUNC(debug)(struct critbit *c, uint64_t arg)
 {
     return 0;
 }
