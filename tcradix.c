@@ -390,6 +390,12 @@ void* FUNC(get)(struct tcrhead *restrict h, uint64_t key)
     return (wrs1 != wrs2) ? get_slow(h, key) : n;
 }
 
+void* FUNC(find_le)(struct tcrhead *restrict h, uint64_t key)
+{
+    fprintf(stderr, "Not implemented.\n");
+    abort();
+}
+
 size_t FUNC(get_size)(struct tcrhead *restrict n)
 {
 #ifdef TRACEMEM

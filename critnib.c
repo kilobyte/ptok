@@ -305,6 +305,12 @@ void* FUNC(get)(struct critnib *c, uint64_t key)
     return (n->path == key) ? n->child[0] : 0;
 }
 
+void* FUNC(find_le)(struct critnib *restrict c, uint64_t key)
+{
+    fprintf(stderr, "Not implemented.\n");
+    abort();
+}
+
 size_t FUNC(get_size)(struct critnib *c)
 {
 #ifdef TRACEMEM

@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "util.h"
 
 /*
@@ -205,6 +206,12 @@ void* FUNC(get)(struct critbit *c, uint64_t key)
 #endif
         n = n->child[!!(n->bit & key)];
     return (n->path == key) ? n->child[0] : 0;
+}
+
+void* FUNC(find_le)(struct critbit *restrict c, uint64_t key)
+{
+    fprintf(stderr, "Not implemented.\n");
+    abort();
 }
 
 size_t FUNC(get_size)(struct critbit *c)
