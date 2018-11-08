@@ -10,7 +10,7 @@
 #define SLICE 4
 #define SLNODES (1<<(SLICE))
 #define LEVELS ((63+SLICE)/SLICE)
-#define FUNC(x) tcradix_atcount_##x
+#define FUNC(x) tcradix_##x
 
 #ifdef DEBUG_SPAM
 # define dprintf(...) printf(__VA_ARGS__)
