@@ -28,10 +28,10 @@ struct critnib_node
 {
     struct critnib_node *child[16];
     uint64_t path;
-    uint32_t shift;
+    int32_t shift;
 };
 
-#define ENDBIT 0xffffffff
+#define ENDBIT -1
 
 static struct critnib_node nullnode =
 {
@@ -106,7 +106,7 @@ static void free_node(struct critnib *c, struct critnib_node *n)
 # define print_nib(...) (void)0
 # define display(...) (void)0
 #else
-static void print_nib(uint64_t key, uint32_t sh)
+static void print_nib(uint64_t key, int32_t sh)
 {
     if (sh == ENDBIT)
         return (void)printf("\e[35m%016lx\e[0m >> ENDBIT", key);
@@ -130,21 +130,21 @@ static void display(struct critnib_node *n)
         return;
     }
 
-    for (int s=0; s<n->shift; s+=4)
+    for (int s=n->shift; s<64; s+=4)
         printf(" ");
-    if (n->path & (~0xfL << n->shift))
+    if (n->path &~ (~0L << n->shift))
         printf("\e[1m[path not masked by shift]\e[0m ");
     print_nib(n->path, n->shift),printf("\n");
     for (int i=0; i<16; i++)
     {
-        for (int s=0; s<n->shift; s+=4)
+        for (int s=n->shift; s<64; s+=4)
             printf(" ");
         printf("%x:", i);
-        if (n->child[i]->shift <= n->shift)
+        if (n->child[i]->shift >= n->shift)
             printf("\e[31m[non-monotonic shift!]");
         display(n->child[i]);
     }
-    for (int s=0; s<n->shift; s+=4)
+    for (int s=n->shift; s<64; s+=4)
         printf(" ");
     printf("──────────────────────────────\n");
 }
@@ -172,13 +172,14 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     {
         printf("- is new root\n");
         c->root = k;
+        display(k);
         return UNLOCK, 0;
     }
 
     struct critnib_node **parent = &c->root, *prev = c->root;
 
     printf("Ω ");print_nib(n->path, n->shift);printf("\n");
-    while (n->shift != ENDBIT && (key &~ (~0L << n->shift)) == n->path)
+    while (n->shift != ENDBIT && (key & (~0xfL << n->shift)) == n->path)
     {
         prev = n;
         parent = &n->child[(key >> n->shift) & 0xf];
@@ -195,10 +196,10 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
         return UNLOCK, 0;
     }
 
-    uint64_t at = (n->path^key) & -(n->path^key);
-    uint32_t sh = __builtin_ctzl(at) & ~3;
+    uint64_t at = n->path^key;
+    int32_t sh = 60 - (__builtin_clzl(at) & ~3);
 
-    printf(">> %u masked key=%016lx path=%016lx\n", n->shift, key &~ (~0xfL << n->shift), n->path);
+    printf(">> %u masked key=%016lx path=%016lx\n", n->shift, key &~ (~0xfL >> n->shift), n->path);
     printf("diff of %016lx at %016lx >> %u\n", n->path^key, at, sh);
 
     printf("our side: "); print_nib(key&at, sh);
@@ -222,7 +223,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     m->child[dir] = k;
     m->child[(n->path >> sh) & 0xf] = n;
     m->shift = sh;
-    m->path = key & ((1L<<sh)-1);
+    m->path = key & (~0xfL << sh);
     *parent = m;
 
     display(c->root);
