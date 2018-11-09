@@ -306,10 +306,37 @@ void* FUNC(get)(struct critnib *c, uint64_t key)
     return (n->path == key) ? n->child[0] : 0;
 }
 
+static void* find_le(struct critnib_node *restrict n, uint64_t key)
+{
+    if (n->shift == ENDBIT)
+        return (n->path == key) ? n->child[0] : NULL;
+
+    int nib = (key >> n->shift) & 0xf;
+    void* value = find_le(n->child[nib], key);
+    if (value)
+        return value;
+    for (; nib >= 0; nib--)
+        if (n->child[nib] != &nullnode)
+        {
+            // From now on, only dive.
+        deeper:
+            n = n->child[nib];
+            if (n->shift == ENDBIT)
+                return n->child[0];
+            for (nib=0xf; nib >= 0; nib--)
+                if (n->child[nib] != &nullnode)
+                {
+                    n = n->child[nib];
+                    goto deeper;
+                }
+            return NULL;
+        }
+    return NULL;
+}
+
 void* FUNC(find_le)(struct critnib *restrict c, uint64_t key)
 {
-    fprintf(stderr, "Not implemented.\n");
-    abort();
+    return find_le(c->root, key);
 }
 
 size_t FUNC(get_size)(struct critnib *c)
