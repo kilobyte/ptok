@@ -119,13 +119,48 @@ static void test_insert_delete_random()
     hm_delete(c);
 }
 
+static void test_le_basic()
+{
+    void *c = hm_new();
+#define INS(x) hm_insert(c, (x), (void*)(x))
+    INS(1);
+    INS(2);
+    INS(3);
+    INS(0);
+    INS(4);
+    INS(0xf);
+    INS(0xe);
+    INS(0x11);
+    INS(0x12);
+    INS(0x20);
+#define GET_SAME(x) CHECK(hm_get(c, (x)) == (void*)(x))
+#define GET_NULL(x) CHECK(hm_get(c, (x)) == NULL)
+    GET_NULL(122);
+    GET_SAME(1);
+    GET_SAME(2);
+    GET_SAME(3);
+    GET_SAME(4);
+    GET_NULL(5);
+    GET_SAME(0x11);
+    GET_SAME(0x12);
+#define LE(x,y) CHECK(hm_find_le(c, (x)) == (void*)(y))
+    LE(1, 1);
+    LE(2, 2);
+    LE(5, 4);
+    LE(6, 4);
+    LE(0x11, 0x11);
+    LE(0x15, 0x12);
+    LE(0xfffffff, 0x20);
+    hm_delete(c);
+}
+
 static void run_test(void (*func)(void), const char *name, int req)
 {
     printf("TEST: %s\n", name);
     for (int i=0; i<ARRAYSZ(hms); i++)
     {
         hm_select(i);
-        if ((hm_immutable & req) != req)
+        if (hm_immutable & req)
         {
             printf(" \e[35m[\e[1m!\e[22m]\e[0m: %s\n", hm_name);
             continue;
@@ -148,5 +183,6 @@ int main()
     TEST(insert_bulk_delete1M, 0);
     TEST(ffffffff_and_friends, 0);
     TEST(insert_delete_random, 0);
+    TEST(le_basic, 2);
     return 0;
 }
