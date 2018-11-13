@@ -119,12 +119,17 @@ static void test_insert_delete_random()
     hm_delete(c);
 }
 
-static void run_test(void (*func)(void), const char *name)
+static void run_test(void (*func)(void), const char *name, int req)
 {
     printf("TEST: %s\n", name);
     for (int i=0; i<ARRAYSZ(hms); i++)
     {
         hm_select(i);
+        if ((hm_immutable & req) != req)
+        {
+            printf(" \e[35m[\e[1m!\e[22m]\e[0m: %s\n", hm_name);
+            continue;
+        }
         printf(" \e[34m[\e[1m⚒\e[22m]\e[0m: %s\n", hm_name);
         bad=0;
         func();
@@ -132,16 +137,16 @@ static void run_test(void (*func)(void), const char *name)
             printf("\e[F \e[32m[\e[1m✓\e[22m]\e[0m\n");
     }
 }
-#define TEST(x) do run_test(test_##x, #x); while (0)
+#define TEST(x,req) do run_test(test_##x, #x, req); while (0)
 
 int main()
 {
-    TEST(smoke);
-    TEST(key0);
-    TEST(1to1000);
-    TEST(insert_delete1M);
-    TEST(insert_bulk_delete1M);
-    TEST(ffffffff_and_friends);
-    TEST(insert_delete_random);
+    TEST(smoke, 0);
+    TEST(key0, 0);
+    TEST(1to1000, 0);
+    TEST(insert_delete1M, 0);
+    TEST(insert_bulk_delete1M, 0);
+    TEST(ffffffff_and_friends, 0);
+    TEST(insert_delete_random, 0);
     return 0;
 }

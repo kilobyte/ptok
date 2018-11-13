@@ -279,7 +279,7 @@ static void test(const char *name, int spreload, int rpreload,
     for (int i=hmin; i<=hmax; i++)
     {
         hm_select(i);
-        if (wthread && hm_immutable)
+        if (wthread && (hm_immutable&1))
         {
             printf(" \e[35m[\e[1m!\e[22m]\e[0m: %s\n", hm_name);
             continue;
