@@ -20,6 +20,7 @@ static int64_t gets=0;
 struct critnib
 {
     struct critnib_node *root;
+    uint64_t volatile write_status;
     pthread_mutex_t mutex;
     struct critnib_node *deleted_node;
 };
@@ -100,6 +101,11 @@ static void free_node(struct critnib *c, struct critnib_node *n)
 #endif
 }
 
+static inline void write_poke(struct critnib *restrict c)
+{
+    util_fetch_and_add64(&c->write_status, 1);
+}
+
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
 
 #ifndef DEBUG_SPAM
@@ -163,6 +169,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     k->child[0] = value;
 
     pthread_mutex_lock(&c->mutex);
+    write_poke(c);
 #ifdef TRACEMEM
     memusage++;
 #endif
@@ -173,6 +180,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
         printf("- is new root\n");
         c->root = k;
         display(k);
+        write_poke(c);
         return UNLOCK, 0;
     }
 
@@ -193,6 +201,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
         printf("in-place update of ");print_nib(key, n->shift);printf("\n");
         n->child[(key >> n->shift) & 0xf] = k;
         display(c->root);
+        write_poke(c);
         return UNLOCK, 0;
     }
 
@@ -211,6 +220,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     if (!m)
     {
         free_node(c, k);
+        write_poke(c);
         return UNLOCK, ENOMEM;
     }
 #ifdef TRACEMEM
@@ -227,6 +237,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     *parent = m;
 
     display(c->root);
+    write_poke(c);
     return UNLOCK, 0;
 }
 
@@ -238,6 +249,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     struct critnib_node *n = c->root;
     if (!n)
         return UNLOCK, NULL;
+    write_poke(c);
     if (n->shift == ENDBIT)
     {
         if (n->path == key)
@@ -245,6 +257,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
             c->root = &nullnode;
             void* value = n->child[0];
             free_node(c, n);
+            write_poke(c);
             return UNLOCK, value;
         }
         return UNLOCK, NULL;
@@ -259,7 +272,10 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
         k = *k_parent;
     }
     if (k->path != key)
+    {
+        write_poke(c);
         return UNLOCK, NULL;
+    }
 
     printf("R ");print_nib(n->path, n->shift);printf(" key ");print_nib(key, n->shift);printf("\n");
     n->child[(key >> n->shift) & 0xf] = &nullnode;
@@ -272,6 +288,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
             {
                 void* value = k->child[0];
                 free_node(c, k);
+                write_poke(c);
                 return UNLOCK, value;
             }
             else
@@ -285,6 +302,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     free_node(c, n);
     free_node(c, k);
     display(c->root);
+    write_poke(c);
     return UNLOCK, value;
 }
 
@@ -295,6 +313,9 @@ void* FUNC(get)(struct critnib *c, uint64_t key)
     util_fetch_and_add64(&gets, 1);
     util_fetch_and_add64(&depths, 1);
 #endif
+    uint64_t wrs1, wrs2;
+retry:
+    util_atomic_load_explicit64(&c->write_status, &wrs1, memory_order_acquire);
     struct critnib_node *n = c->root;
     if (!n)
         return 0;
@@ -303,7 +324,11 @@ void* FUNC(get)(struct critnib *c, uint64_t key)
         util_fetch_and_add64(&depths, 1),
 #endif
         n = n->child[(key >> n->shift) & 0xf];
-    return (n->path == key) ? n->child[0] : 0;
+    void* res = (n->path == key) ? n->child[0] : 0;
+    util_atomic_load_explicit64(&c->write_status, &wrs2, memory_order_acquire);
+    if (wrs1 != wrs2)
+        goto retry;
+    return res;
 }
 
 static void* find_le(struct critnib_node *restrict n, uint64_t key)
