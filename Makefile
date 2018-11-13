@@ -1,6 +1,6 @@
 ALL=test 1corr th
 OBJ=util.o out.o hmload.o \
-	tlog.o critbit.o critnib.o tcradix.o \
+	tlog.o critbit.o critnib.o tcradix.o critnib-atcount.o \
 
 CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
