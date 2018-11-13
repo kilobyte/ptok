@@ -15,7 +15,7 @@ int main()
     hm_insert(c, 0x11, "11");
     hm_insert(c, 0x12, "12");
     hm_insert(c, 0x20, "20");
-#define GET(x) printf("%lx = %s\n", (uint64_t)(x), (const char*)hm_get(c, (x)))
+#define GET(x) printf("get(%lx) → %s\n", (uint64_t)(x), (const char*)hm_get(c, (x)))
     GET(122);
     GET(1);
     GET(2);
@@ -24,7 +24,7 @@ int main()
     GET(5);
     GET(0x11);
     GET(0x12);
-#define LE(x) printf("%lx <= %s\n", (uint64_t)(x), (const char*)hm_find_le(c, (x)))
+#define LE(x) printf("le(%lx) → %s\n", (uint64_t)(x), (const char*)hm_find_le(c, (x)))
     LE(1);
     LE(2);
     LE(5);
