@@ -154,6 +154,47 @@ static void test_le_basic()
     hm_delete(c);
 }
 
+static uint64_t expand_bits(uint64_t x)
+{
+    return (x&0xc000)<<14
+         | (x&0x3000)<<12
+         | (x&0x0c00)<<10
+         | (x&0x0300)<< 8
+         | (x&0x00c0)<< 6
+         | (x&0x0030)<< 4
+         | (x&0x000c)<< 2
+         | (x&0x0003);
+}
+
+static void test_le_brute()
+{
+    void *c = hm_new();
+    char ws[65536]={0,};
+
+    for (int cnt=0; cnt<1024; cnt++)
+    {
+        int w = mrand48()&0xffff;
+        if (ws[w])
+            hm_remove(c, expand_bits(w)), ws[w]=0;
+        else
+            hm_insert(c, expand_bits(w), (void*)expand_bits(w)), ws[w]=1;
+
+        for (int cnt2=0; cnt2<1024; cnt2++)
+        {
+            w = mrand48()&0xffff;
+            int v;
+            for (v=w; v>=0 && !ws[v]; v--)
+                ;
+            uint64_t res = (uint64_t)hm_find_le(c, expand_bits(w));
+            uint64_t exp = (v>=0)?expand_bits(v):0;
+            CHECK(res == exp);
+        }
+    }
+
+    hm_delete(c);
+
+}
+
 static void run_test(void (*func)(void), const char *name, int req)
 {
     printf("TEST: %s\n", name);
@@ -184,5 +225,6 @@ int main()
     TEST(ffffffff_and_friends, 0);
     TEST(insert_delete_random, 0);
     TEST(le_basic, 2);
+    TEST(le_brute, 2);
     return 0;
 }
