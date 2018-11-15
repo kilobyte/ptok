@@ -229,6 +229,18 @@ static void* thread_le1(void* c)
     return (void*)count;
 }
 
+static void* thread_le1000(void* c)
+{
+    uint64_t count=0;
+    while (!done)
+    {
+        uint64_t y = revbits(count);
+        hm_find_le(c, y);
+        count++;
+    }
+    return (void*)count;
+}
+
 /*********/
 /* tests */
 /*********/
@@ -366,6 +378,7 @@ int main(int argc, char **argv)
     test("read 1-of-1000 cachekiller", 1, 1000, thread_read1_cachekiller, 0, 0);
     test("read 1000 write 1000 cachekiller", 0, 1000, thread_read1000_cachekiller, thread_write1000_cachekiller, 0);
     test("le 1 van der Corput", 1, 0, thread_le1, 0, 2);
+    test("le 1000 van der Corput", 0, 1000, thread_le1000, 0, 2);
 
     for (int i=0; i<ARRAYSZ(the1000p); i++)
         free(the1000p[i]);
