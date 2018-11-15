@@ -225,8 +225,16 @@ static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_f
             hm_insert(c, (uint64_t)the1000p[i], the1000p[i]);
     }
     else
+    {
+        while (rpreload > 1000)
+        {
+            uint64_t v =rnd64();
+            hm_insert(c, v, (void*)v);
+            rpreload--;
+        }
         for (int i=spreload; i<rpreload; i++)
             hm_insert(c, the1000[i], (void*)the1000[i]);
+    }
 
     pthread_t th[nthreads], wr[nwthreads];
     int ntr=wthread?nrthreads:nthreads;
@@ -333,6 +341,7 @@ int main(int argc, char **argv)
     test("read 1-of-2", 2, 0, thread_read1, 0);
     test("read 1-of-1000", 1, 1000, thread_read1, 0);
     test("read 1000-of-1000", 0, 1000, thread_read1000, 0);
+    test("read 1000-of-1000000", 0, 1000000, thread_read1000, 0);
     test("read 1-of-1000 pointers", 0, -1000, thread_read1p, 0);
     test("read 1 write 1000", 1, 0, thread_read1, thread_write1000);
     test("read 1000 write 1000", 0, 1000, thread_read1000, thread_write1000);
