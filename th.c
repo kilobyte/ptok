@@ -270,7 +270,7 @@ static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_f
 static int only_hm = -1;
 
 static void test(const char *name, int spreload, int rpreload,
-    thread_func_t rthread, thread_func_t wthread)
+    thread_func_t rthread, thread_func_t wthread, int req)
 {
     printf("TEST: %s\n", name);
 
@@ -279,7 +279,7 @@ static void test(const char *name, int spreload, int rpreload,
     for (int i=hmin; i<=hmax; i++)
     {
         hm_select(i);
-        if (wthread && (hm_immutable&1))
+        if ((wthread && (hm_immutable&1)) || hm_immutable&req)
         {
             printf(" \e[35m[\e[1m!\e[22m]\e[0m: %s\n", hm_name);
             continue;
@@ -328,17 +328,17 @@ int main(int argc, char **argv)
         nrthreads = 1;
     printf("Using %lu threads; %lu readers %lu writers in mixed tests.\n",
         nthreads, nrthreads, nwthreads);
-    test("read 1-of-1", 1, 0, thread_read1, 0);
-    test("read 1-of-2", 2, 0, thread_read1, 0);
-    test("read 1-of-1000", 1, 1000, thread_read1, 0);
-    test("read 1000-of-1000", 0, 1000, thread_read1000, 0);
-    test("read 1-of-1000 pointers", 0, -1000, thread_read1p, 0);
-    test("read 1 write 1000", 1, 0, thread_read1, thread_write1000);
-    test("read 1000 write 1000", 0, 1000, thread_read1000, thread_write1000);
-    test("read-write-remove", 0, 0, thread_read_write_remove, (thread_func_t)-1);
-    test("read 1-of-1 cachekiller", 1, 0, thread_read1_cachekiller, 0);
-    test("read 1-of-1000 cachekiller", 1, 1000, thread_read1_cachekiller, 0);
-    test("read 1000 write 1000 cachekiller", 0, 1000, thread_read1000_cachekiller, thread_write1000_cachekiller);
+    test("read 1-of-1", 1, 0, thread_read1, 0, 0);
+    test("read 1-of-2", 2, 0, thread_read1, 0, 0);
+    test("read 1-of-1000", 1, 1000, thread_read1, 0, 0);
+    test("read 1000-of-1000", 0, 1000, thread_read1000, 0, 0);
+    test("read 1-of-1000 pointers", 0, -1000, thread_read1p, 0, 0);
+    test("read 1 write 1000", 1, 0, thread_read1, thread_write1000, 0);
+    test("read 1000 write 1000", 0, 1000, thread_read1000, thread_write1000, 0);
+    test("read-write-remove", 0, 0, thread_read_write_remove, (thread_func_t)-1, 0);
+    test("read 1-of-1 cachekiller", 1, 0, thread_read1_cachekiller, 0, 0);
+    test("read 1-of-1000 cachekiller", 1, 1000, thread_read1_cachekiller, 0, 0);
+    test("read 1000 write 1000 cachekiller", 0, 1000, thread_read1000_cachekiller, thread_write1000_cachekiller, 0);
 
     for (int i=0; i<ARRAYSZ(the1000p); i++)
         free(the1000p[i]);
