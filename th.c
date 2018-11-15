@@ -203,6 +203,32 @@ static void* thread_write1000_cachekiller(void* c)
     return (void*)count;
 }
 
+static uint64_t revbits(uint64_t x)
+{
+    uint64_t y=0, a=1, b=0x8000000000000000;
+    for (; b; a<<=1, b>>=1)
+    {
+        if (x & a)
+            y |= b;
+    }
+    return y;
+}
+
+static void* thread_le1(void* c)
+{
+    uint64_t count=0;
+    while (!done)
+    {
+        uint64_t y = revbits(count);
+        if (y < K)
+            CHECK(hm_find_le(c, y) == NULL);
+        else
+            CHECK(hm_find_le(c, y) == (void*)K);
+        count++;
+    }
+    return (void*)count;
+}
+
 /*********/
 /* tests */
 /*********/
@@ -339,6 +365,7 @@ int main(int argc, char **argv)
     test("read 1-of-1 cachekiller", 1, 0, thread_read1_cachekiller, 0, 0);
     test("read 1-of-1000 cachekiller", 1, 1000, thread_read1_cachekiller, 0, 0);
     test("read 1000 write 1000 cachekiller", 0, 1000, thread_read1000_cachekiller, thread_write1000_cachekiller, 0);
+    test("le 1 van der Corput", 1, 0, thread_le1, 0, 2);
 
     for (int i=0; i<ARRAYSZ(the1000p); i++)
         free(the1000p[i]);
