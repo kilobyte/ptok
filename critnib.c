@@ -227,6 +227,14 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     }
 
     uint64_t at = n->path^key;
+    if (!at)
+    {
+        if (n->shift != ENDBIT)
+            fprintf(stderr, "zero diff not in a leaf?\n"), abort();
+        free_node(c, k);
+        n->child[0] = value;
+        return UNLOCK, 0;
+    }
     int32_t sh = 60 - (__builtin_clzl(at) & ~3);
 
     dprintf(">> %u masked key=%016lx path=%016lx\n", n->shift, key &~ (~0xfL >> n->shift), n->path);
