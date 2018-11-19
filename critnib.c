@@ -103,20 +103,12 @@ void FUNC(delete)(struct critnib *c)
     {
         struct critnib_node *mm=m->child[0];
         Free(m);
-#ifdef TRACEMEM
-        memusage--;
-#endif
         m=mm;
     }
     for (int i=0; i<DELETED_LIFE; i++)
         for (int j=0; j<2; j++)
             if (c->pending_dels[i][j])
-            {
                 Free(c->pending_dels[i][j]);
-#ifdef TRACEMEM
-                memusage--;
-#endif
-            }
     Free(c);
 #ifdef TRACEMEM
     if (memusage)
@@ -130,9 +122,6 @@ static void free_node(struct critnib *c, struct critnib_node *n)
         return;
     n->child[0] = c->deleted_node;
     c->deleted_node = n;
-#ifdef TRACEMEM
-    memusage--;
-#endif
 }
 
 static struct critnib_node* alloc_node(struct critnib *c)
@@ -287,6 +276,9 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
             util_atomic_store_explicit64(&c->root, &nullnode, memory_order_release);
             void* value = n->child[0];
             c->pending_dels[del][0] = n;
+#ifdef TRACEMEM
+            memusage--;
+#endif
             return UNLOCK, value;
         }
         return UNLOCK, NULL;
@@ -314,6 +306,9 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
             {
                 void* value = k->child[0];
                 c->pending_dels[del][0] = k;
+#ifdef TRACEMEM
+                memusage--;
+#endif
                 return UNLOCK, value;
             }
             else
@@ -326,6 +321,9 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     void* value = k->child[0];
     c->pending_dels[del][0] = n;
     c->pending_dels[del][1] = k;
+#ifdef TRACEMEM
+    memusage-=2;
+#endif
     display(c->root);
     return UNLOCK, value;
 }
