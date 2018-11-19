@@ -4,8 +4,10 @@
 #include "util.h"
 
 //#define DEBUG_SPAM
-#ifndef DEBUG_SPAM
-#define printf(...) (void)0
+#ifdef DEBUG_SPAM
+#define dprintf(...) printf(__VA_ARGS__)
+#else
+#define dprintf(...) (void)0
 #endif
 #define FUNC(x) critnib_atcount_##x
 
@@ -173,11 +175,11 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
 #ifdef TRACEMEM
     memusage++;
 #endif
-    printf("\e[33minsert %016lx\e[0m\n", key);
+    dprintf("\e[33minsert %016lx\e[0m\n", key);
     struct critnib_node *n = c->root;
     if (n == &nullnode)
     {
-        printf("- is new root\n");
+        dprintf("- is new root\n");
         c->root = k;
         display(k);
         write_poke(c);
@@ -186,19 +188,19 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
 
     struct critnib_node **parent = &c->root, *prev = c->root;
 
-    printf("Ω ");print_nib(n->path, n->shift);printf("\n");
+    dprintf("Ω ");print_nib(n->path, n->shift);dprintf("\n");
     while (n->shift != ENDBIT && (key & (~0xfL << n->shift)) == n->path)
     {
         prev = n;
         parent = &n->child[(key >> n->shift) & 0xf];
         n = *parent;
-        printf("• ");print_nib(n->path, n->shift);printf("\n");
+        dprintf("• ");print_nib(n->path, n->shift);dprintf("\n");
     }
 
     if (n == &nullnode)
     {
         n = prev;
-        printf("in-place update of ");print_nib(key, n->shift);printf("\n");
+        dprintf("in-place update of ");print_nib(key, n->shift);dprintf("\n");
         n->child[(key >> n->shift) & 0xf] = k;
         display(c->root);
         write_poke(c);
@@ -208,13 +210,13 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     uint64_t at = n->path^key;
     int32_t sh = 60 - (__builtin_clzl(at) & ~3);
 
-    printf(">> %u masked key=%016lx path=%016lx\n", n->shift, key &~ (~0xfL >> n->shift), n->path);
-    printf("diff of %016lx at %016lx >> %u\n", n->path^key, at, sh);
+    dprintf(">> %u masked key=%016lx path=%016lx\n", n->shift, key &~ (~0xfL >> n->shift), n->path);
+    dprintf("diff of %016lx at %016lx >> %u\n", n->path^key, at, sh);
 
-    printf("our side: "); print_nib(key&at, sh);
-    printf(" nib: %lx, at: ", (key >> sh) & 0xf);
+    dprintf("our side: "); print_nib(key&at, sh);
+    dprintf(" nib: %lx, at: ", (key >> sh) & 0xf);
     print_nib(0xfL<<sh, sh);
-    printf("\n");
+    dprintf("\n");
 
     struct critnib_node *m = Zalloc(sizeof(struct critnib_node));
     if (!m)
@@ -243,7 +245,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
 
 void *FUNC(remove)(struct critnib *c, uint64_t key)
 {
-    printf("\e[33mremove %016lx\e[0m\n", key);
+    dprintf("\e[33mremove %016lx\e[0m\n", key);
     pthread_mutex_lock(&c->mutex);
 
     struct critnib_node *n = c->root;
@@ -277,7 +279,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
         return UNLOCK, NULL;
     }
 
-    printf("R ");print_nib(n->path, n->shift);printf(" key ");print_nib(key, n->shift);printf("\n");
+    dprintf("R ");print_nib(n->path, n->shift);dprintf(" key ");print_nib(key, n->shift);dprintf("\n");
     n->child[(key >> n->shift) & 0xf] = &nullnode;
 
     int ochild = -1;
@@ -308,7 +310,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
 
 void* FUNC(get)(struct critnib *c, uint64_t key)
 {
-    printf("\e[33mget %016lx\e[0m\n", key);
+    dprintf("\e[33mget %016lx\e[0m\n", key);
 #ifdef TRACEMEM
     util_fetch_and_add64(&gets, 1);
     util_fetch_and_add64(&depths, 1);
