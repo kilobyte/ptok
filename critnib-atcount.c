@@ -135,6 +135,18 @@ static void free_node(struct critnib *c, struct critnib_node *n)
 #endif
 }
 
+static struct critnib_node* alloc_node(struct critnib *c)
+{
+#ifdef TRACEMEM
+    memusage++;
+#endif
+    if (!c->deleted_node)
+        return Malloc(sizeof(struct critnib_node));
+    struct critnib_node *n = c->deleted_node;
+    c->deleted_node = n->child[0];
+    return n;
+}
+
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
 
 #ifndef DEBUG_SPAM
@@ -187,20 +199,14 @@ static void display(struct critnib_node *n)
 
 int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
 {
-    /* We always need two nodes, so alloc them together to reduce malloc's
-     * metadata.  Avoiding malloc inside the mutex is another bonus.
-     */
-    struct critnib_node *k = Zalloc(sizeof(struct critnib_node));
+    pthread_mutex_lock(&c->mutex);
+    struct critnib_node *k = alloc_node(c);
     if (!k)
-        return ENOMEM;
+        return UNLOCK, ENOMEM;
     k->path = key;
     k->shift = ENDBIT;
     k->child[0] = value;
 
-    pthread_mutex_lock(&c->mutex);
-#ifdef TRACEMEM
-    memusage++;
-#endif
     dprintf("\e[33minsert %016lx\e[0m\n", key);
     struct critnib_node *n = c->root;
     if (n == &nullnode)
@@ -242,15 +248,12 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     print_nib(0xfL<<sh, sh);
     dprintf("\n");
 
-    struct critnib_node *m = Zalloc(sizeof(struct critnib_node));
+    struct critnib_node *m = alloc_node(c);
     if (!m)
     {
         free_node(c, k);
         return UNLOCK, ENOMEM;
     }
-#ifdef TRACEMEM
-    memusage++;
-#endif
 
     for (int i=0; i<16; i++)
         m->child[i] = &nullnode;
