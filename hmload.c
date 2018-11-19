@@ -2,10 +2,9 @@
 #include <stdio.h>
 #include "hmproto.h"
 
-struct hm hms[4] =
+struct hm hms[3] =
 {
     HM_ARR(critbit, 2),
-    HM_ARR(critnib, 0),
     HM_ARR(tcradix, 2),
     HM_ARR(critnib_atcount, 0),
 };

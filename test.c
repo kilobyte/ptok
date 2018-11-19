@@ -3,7 +3,7 @@
 
 int main()
 {
-    HM_SELECT(critnib);
+    HM_SELECT(critnib_atcount);
     void *c = hm_new();
     hm_insert(c, 0x1, "1");
     hm_insert(c, 0x2, "2");

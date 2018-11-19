@@ -13,7 +13,6 @@
     uint64_t x##_debug(void *c, uint64_t arg);
 
 HM_PROTOS(critbit)
-HM_PROTOS(critnib)
 HM_PROTOS(tcradix)
 HM_PROTOS(critnib_atcount)
 
@@ -57,6 +56,6 @@ struct hm
     uint64_t (*hm_debug)(void *c, uint64_t arg);
     const char *hm_name;
     int hm_immutable;
-} hms[4];
+} hms[3];
 
 void hm_select(int i);
