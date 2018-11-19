@@ -14,7 +14,7 @@
 
 HM_PROTOS(critbit)
 HM_PROTOS(tcradix)
-HM_PROTOS(critnib_atcount)
+HM_PROTOS(critnib)
 
 void *(*hm_new)(void);
 void (*hm_delete)(void *c);

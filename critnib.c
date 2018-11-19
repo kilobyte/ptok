@@ -9,7 +9,7 @@
 #else
 #define dprintf(...) (void)0
 #endif
-#define FUNC(x) critnib_atcount_##x
+#define FUNC(x) critnib_##x
 
 //#define TRACEMEM
 
