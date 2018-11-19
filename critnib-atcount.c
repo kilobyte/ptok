@@ -201,7 +201,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     {
         n = prev;
         dprintf("in-place update of ");print_nib(key, n->shift);dprintf("\n");
-        n->child[(key >> n->shift) & 0xf] = k;
+        util_atomic_store_explicit64(&n->child[(key >> n->shift) & 0xf], k, memory_order_release);
         display(c->root);
         write_poke(c);
         return UNLOCK, 0;
@@ -236,7 +236,7 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     m->child[(n->path >> sh) & 0xf] = n;
     m->shift = sh;
     m->path = key & (~0xfL << sh);
-    *parent = m;
+    util_atomic_store_explicit64(parent, m, memory_order_release);
 
     display(c->root);
     write_poke(c);
@@ -256,7 +256,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     {
         if (n->path == key)
         {
-            c->root = &nullnode;
+            util_atomic_store_explicit64(&c->root, &nullnode, memory_order_release);
             void* value = n->child[0];
             free_node(c, n);
             write_poke(c);
@@ -280,7 +280,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     }
 
     dprintf("R ");print_nib(n->path, n->shift);dprintf(" key ");print_nib(key, n->shift);dprintf("\n");
-    n->child[(key >> n->shift) & 0xf] = &nullnode;
+    util_atomic_store_explicit64(&n->child[(key >> n->shift) & 0xf], &nullnode, memory_order_release);
 
     int ochild = -1;
     for (int i=0; i<16; i++)
@@ -299,7 +299,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     if (ochild == -1)
         ochild = 0;
 
-    *n_parent = n->child[ochild];
+    util_atomic_store_explicit64(n_parent, n->child[ochild], memory_order_release);
     void* value = k->child[0];
     free_node(c, n);
     free_node(c, k);
