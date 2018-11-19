@@ -19,19 +19,40 @@ static int64_t depths=0;
 static int64_t gets=0;
 #endif
 
-struct critnib
-{
-    struct critnib_node *root;
-    uint64_t volatile write_status;
-    pthread_mutex_t mutex;
-    struct critnib_node *deleted_node;
-};
+/*
+ * A node that has been deleted is left untouched for this many delete
+ * cycles.  Reads have guaranteed correctness if they took no longer than
+ * DELETED_LIFE concurrent deletes, otherwise they notice something is
+ * wrong and restart.  The memory of deleted nodes is never freed to
+ * malloc nor their pointers lead anywhere wrong, thus a stale read will
+ * (temporarily) get a wrong answer but won't crash.
+ *
+ * There's no need to count writes as they never interfere with reads.
+ *
+ * Allowing stale reads (of arbitrarily old writes or of deletes less than
+ * DELETED_LIFE old) might sound counterintuitive, but it doesn't affect
+ * semantics in any way: the thread could have been stalled just after
+ * returning from our code.  Thus, the guarantee is: the result of get() or
+ * find_le() is a value that was current at any point between the call
+ * started and ended.
+ *
+ */
+#define DELETED_LIFE 16
 
 struct critnib_node
 {
     struct critnib_node *child[16];
     uint64_t path;
     int32_t shift;
+};
+
+struct critnib
+{
+    struct critnib_node *root;
+    struct critnib_node *deleted_node;
+    struct critnib_node *pending_dels[DELETED_LIFE][2];
+    uint64_t volatile write_status;
+    pthread_mutex_t mutex;
 };
 
 #define ENDBIT -1
@@ -87,6 +108,15 @@ void FUNC(delete)(struct critnib *c)
 #endif
         m=mm;
     }
+    for (int i=0; i<DELETED_LIFE; i++)
+        for (int j=0; j<2; j++)
+            if (c->pending_dels[i][j])
+            {
+                Free(c->pending_dels[i][j]);
+#ifdef TRACEMEM
+                memusage--;
+#endif
+            }
     Free(c);
 #ifdef TRACEMEM
     if (memusage)
@@ -96,16 +126,13 @@ void FUNC(delete)(struct critnib *c)
 
 static void free_node(struct critnib *c, struct critnib_node *n)
 {
-    //n->child[0] = c->deleted_node;
-    //c->deleted_node = n;
+    if (!n)
+        return;
+    n->child[0] = c->deleted_node;
+    c->deleted_node = n;
 #ifdef TRACEMEM
     memusage--;
 #endif
-}
-
-static inline void write_poke(struct critnib *restrict c)
-{
-    util_fetch_and_add64(&c->write_status, 1);
 }
 
 #define UNLOCK pthread_mutex_unlock(&c->mutex)
@@ -171,7 +198,6 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     k->child[0] = value;
 
     pthread_mutex_lock(&c->mutex);
-    write_poke(c);
 #ifdef TRACEMEM
     memusage++;
 #endif
@@ -182,7 +208,6 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
         dprintf("- is new root\n");
         c->root = k;
         display(k);
-        write_poke(c);
         return UNLOCK, 0;
     }
 
@@ -203,7 +228,6 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
         dprintf("in-place update of ");print_nib(key, n->shift);dprintf("\n");
         util_atomic_store_explicit64(&n->child[(key >> n->shift) & 0xf], k, memory_order_release);
         display(c->root);
-        write_poke(c);
         return UNLOCK, 0;
     }
 
@@ -222,7 +246,6 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     if (!m)
     {
         free_node(c, k);
-        write_poke(c);
         return UNLOCK, ENOMEM;
     }
 #ifdef TRACEMEM
@@ -239,7 +262,6 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     util_atomic_store_explicit64(parent, m, memory_order_release);
 
     display(c->root);
-    write_poke(c);
     return UNLOCK, 0;
 }
 
@@ -251,15 +273,17 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     struct critnib_node *n = c->root;
     if (!n)
         return UNLOCK, NULL;
-    write_poke(c);
+    uint64_t del = util_fetch_and_add64(&c->write_status, 1) % DELETED_LIFE;
+    free_node(c, c->pending_dels[del][0]);
+    free_node(c, c->pending_dels[del][1]);
+    c->pending_dels[del][1] = c->pending_dels[del][0] = 0;
     if (n->shift == ENDBIT)
     {
         if (n->path == key)
         {
             util_atomic_store_explicit64(&c->root, &nullnode, memory_order_release);
             void* value = n->child[0];
-            free_node(c, n);
-            write_poke(c);
+            c->pending_dels[del][0] = n;
             return UNLOCK, value;
         }
         return UNLOCK, NULL;
@@ -274,10 +298,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
         k = *k_parent;
     }
     if (k->path != key)
-    {
-        write_poke(c);
         return UNLOCK, NULL;
-    }
 
     dprintf("R ");print_nib(n->path, n->shift);dprintf(" key ");print_nib(key, n->shift);dprintf("\n");
     util_atomic_store_explicit64(&n->child[(key >> n->shift) & 0xf], &nullnode, memory_order_release);
@@ -289,8 +310,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
             if (ochild != -1)
             {
                 void* value = k->child[0];
-                free_node(c, k);
-                write_poke(c);
+                c->pending_dels[del][0] = k;
                 return UNLOCK, value;
             }
             else
@@ -301,10 +321,9 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
 
     util_atomic_store_explicit64(n_parent, n->child[ochild], memory_order_release);
     void* value = k->child[0];
-    free_node(c, n);
-    free_node(c, k);
+    c->pending_dels[del][0] = n;
+    c->pending_dels[del][1] = k;
     display(c->root);
-    write_poke(c);
     return UNLOCK, value;
 }
 
@@ -328,7 +347,7 @@ retry:
         n = n->child[(key >> n->shift) & 0xf];
     void* res = (n->path == key) ? n->child[0] : 0;
     util_atomic_load_explicit64(&c->write_status, &wrs2, memory_order_acquire);
-    if (wrs1 != wrs2)
+    if (wrs1 + DELETED_LIFE <= wrs2)
         goto retry;
     return res;
 }
@@ -367,7 +386,14 @@ dive:
 
 void* FUNC(find_le)(struct critnib *restrict c, uint64_t key)
 {
-    return find_le(c->root, key);
+    uint64_t wrs1, wrs2;
+retry:
+    util_atomic_load_explicit64(&c->write_status, &wrs1, memory_order_acquire);
+    void* res = find_le(c->root, key);
+    util_atomic_load_explicit64(&c->write_status, &wrs2, memory_order_acquire);
+    if (wrs1 + DELETED_LIFE <= wrs2)
+        goto retry;
+    return res;
 }
 
 size_t FUNC(get_size)(struct critnib *c)
