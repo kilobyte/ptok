@@ -195,6 +195,28 @@ static void test_le_brute()
 
 }
 
+static void test_same_only()
+{
+    void *c = hm_new();
+    hm_insert(c, 123, (void*)456);
+    hm_insert(c, 123, (void*)456);
+    CHECK(hm_get(c, 123) == (void*)456);
+    CHECK(hm_get(c, 124) == 0);
+    hm_delete(c);
+}
+
+static void test_same_two()
+{
+    void *c = hm_new();
+    hm_insert(c, 122, (void*)111);
+    hm_insert(c, 123, (void*)456);
+    hm_insert(c, 123, (void*)456);
+    CHECK(hm_get(c, 122) == (void*)111);
+    CHECK(hm_get(c, 123) == (void*)456);
+    CHECK(hm_get(c, 124) == 0);
+    hm_delete(c);
+}
+
 static void run_test(void (*func)(void), const char *name, int req)
 {
     printf("TEST: %s\n", name);
@@ -226,5 +248,7 @@ int main()
     TEST(insert_delete_random, 0);
     TEST(le_basic, 2);
     TEST(le_brute, 2);
+    TEST(same_only, 2);
+    TEST(same_two, 2);
     return 0;
 }
