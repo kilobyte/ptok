@@ -279,7 +279,7 @@ void *FUNC(remove)(struct critnib *c, uint64_t key)
     c->pending_dels[del][1] = c->pending_dels[del][0] = 0;
     if (n->shift == ENDBIT)
     {
-        if (n->path == key)
+        if (n->path == key && n != &nullnode)
         {
             util_atomic_store_explicit64(&c->root, &nullnode, memory_order_release);
             void* value = n->child[0];
