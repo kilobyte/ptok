@@ -395,29 +395,3 @@ void* FUNC(find_le)(struct tcrhead *restrict h, uint64_t key)
     fprintf(stderr, "Not implemented.\n");
     abort();
 }
-
-size_t FUNC(get_size)(struct tcrhead *restrict n)
-{
-#ifdef TRACEMEM
-    return memusage*sizeof(struct tcrnode);
-#else
-    return 0;
-#endif
-}
-
-void FUNC(get_stats)(void *c, uint64_t *buf, int nstat)
-{
-#ifdef TRACEMEM
-    if (nstat>=1)
-        buf[0]=memusage;
-    if (nstat>=2)
-        buf[1]=depths;
-    if (nstat>=3)
-        buf[2]=gets;
-#endif
-}
-
-uint64_t FUNC(debug)(struct tcrhead *restrict n, uint64_t arg)
-{
-    return 0;
-}

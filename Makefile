@@ -5,10 +5,6 @@ OBJ=util.o out.o hmload.o \
 CC=gcc
 CFLAGS=-Wall -g -O3 -pthread
 
-ifdef M
-CFLAGS+=-DTRACEMEM
-endif
-
 all: $(ALL)
 
 .c.o:

@@ -291,17 +291,10 @@ static void run_test(int spreload, int rpreload, thread_func_t rthread, thread_f
         countw+=(uintptr_t)retval;
     }
 
-#ifdef TRACEMEM
-    uint64_t mem = hm_get_size(c);
-    uint64_t stats[3] = {0,0,0};
-    hm_get_stats(c, stats, ARRAYSZ(stats));
-    printf("\e[F\e[25Cmem:%10ld avg.depth: %5.2f\n", mem, stats[2]?(double)stats[1]/stats[2]:0);
-#else
     if (ntw)
         printf("\e[F\e[25C%15lu %15lu\n", countr, countw);
     else
         printf("\e[F\e[25C%15lu\n", countr);
-#endif
     hm_delete(c);
 }
 
