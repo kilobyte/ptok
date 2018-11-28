@@ -199,7 +199,7 @@ static void test_same_only()
 {
     void *c = hm_new();
     hm_insert(c, 123, (void*)456);
-    hm_insert(c, 123, (void*)456);
+    hm_insert(c, 123, (void*)457);
     CHECK(hm_get(c, 123) == (void*)456);
     CHECK(hm_get(c, 124) == 0);
     hm_delete(c);
@@ -210,7 +210,7 @@ static void test_same_two()
     void *c = hm_new();
     hm_insert(c, 122, (void*)111);
     hm_insert(c, 123, (void*)456);
-    hm_insert(c, 123, (void*)456);
+    hm_insert(c, 123, (void*)457);
     CHECK(hm_get(c, 122) == (void*)111);
     CHECK(hm_get(c, 123) == (void*)456);
     CHECK(hm_get(c, 124) == 0);

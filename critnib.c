@@ -231,9 +231,9 @@ int FUNC(insert)(struct critnib *c, uint64_t key, void *value)
     {
         if (n->shift != ENDBIT)
             fprintf(stderr, "zero diff not in a leaf?\n"), abort();
+        dprintf("update of existing leaf\n");
         free_node(c, k);
-        n->child[0] = value;
-        return UNLOCK, 0;
+        return UNLOCK, EEXIST;
     }
     int32_t sh = 60 - (__builtin_clzl(at) & ~3);
 
