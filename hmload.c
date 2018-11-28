@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include "hmproto.h"
 
-struct hm hms[3] =
+struct hm hms[4] =
 {
     HM_ARR(critbit, 2),
     HM_ARR(tcradix, 2),
     HM_ARR(critnib, 0),
+    HM_ARR(critnib_tag, 0),
 };
 
 void hm_select(int i)

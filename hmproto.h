@@ -12,6 +12,7 @@
 HM_PROTOS(critbit)
 HM_PROTOS(tcradix)
 HM_PROTOS(critnib)
+HM_PROTOS(critnib_tag)
 
 void *(*hm_new)(void);
 void (*hm_delete)(void *c);
@@ -44,6 +45,6 @@ struct hm
     void *(*hm_find_le)(void *c, uint64_t key);
     const char *hm_name;
     int hm_immutable;
-} hms[3];
+} hms[4];
 
 void hm_select(int i);
