@@ -3,20 +3,14 @@
 
 int main()
 {
-    HM_SELECT(critnib);
+    HM_SELECT(critnib_tag);
     void *c = hm_new();
     hm_insert(c, 0x1, "1");
-    hm_insert(c, 0x2, "2");
-    hm_insert(c, 0x3, "3");
     hm_insert(c, 0x0, "0");
-    hm_insert(c, 0x4, "4");
-    hm_insert(c, 0xf, "f");
-    hm_insert(c, 0xe, "e");
-    hm_insert(c, 0x11, "11");
-    hm_insert(c, 0x12, "12");
-    hm_insert(c, 0x20, "20");
+    hm_insert(c, 0x2, "2");
 #define GET(x) printf("get(%lx) → %s\n", (uint64_t)(x), (const char*)hm_get(c, (x)))
     GET(122);
+    GET(0);
     GET(1);
     GET(2);
     GET(3);
